@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from ..schemas.user import UserOut
 from ..crud.user import get_user_by_username
@@ -7,18 +7,20 @@ from ..core.security import decode_access_token
 
 router = APIRouter()
 
-def get_current_user(db: Session = Depends(get_db), authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        return None
-    token = authorization.split()[1]
+def get_current_user(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if token.startswith("Bearer "):
+        token = token.split(" ")[1]
     payload = decode_access_token(token)
     if not payload:
-        return None
+        raise HTTPException(status_code=401, detail="Invalid token")
     user = get_user_by_username(db, payload.get("sub"))
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
     return user
 
 @router.get("/users/me", response_model=UserOut)
-def get_me(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    if not user:
-        return {"msg": "Not authenticated"}
+def get_me(user=Depends(get_current_user)):
     return user

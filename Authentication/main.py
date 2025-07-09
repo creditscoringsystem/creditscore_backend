@@ -107,7 +107,10 @@ async def get_current_active_user(current_user: UserInDB = Depends(get_current_u
 # Tạo bảng 
 Base.metadata.create_all(bind=engine, checkfirst=True)
 
-app = FastAPI()
+app = FastAPI(
+    title="Credit Score API",
+    description="API cho hệ thống xác thực, phân quyền, quản lý user...",
+)
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(users.router, tags=["users"])

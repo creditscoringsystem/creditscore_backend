@@ -22,18 +22,53 @@ class UserCreate(UserBase):
             raise ValueError('At least one of username, email, or phonenumber must be provided')
         return values
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "username": "alice",
+                "email": "alice@example.com",
+                "phonenumber": "0123456789",
+                "full_name": "Alice",
+                "password": "yourpassword"
+            }
+        }
+    }
+
 class UserOut(UserBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True 
 
 class UserLogin(BaseModel):
     username: str
     password: str
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "username": "alice",
+                "password": "yourpassword"
+            }
+        }
+    }
 
 class UserUpdatePassword(BaseModel):
     old_password: str
     new_password: str
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "old_password": "oldpassword",
+                "new_password": "newpassword"
+            }
+        }
+    }
 
 class UserForgotPassword(BaseModel):
     username: str
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "username": "alice"
+            }
+        }
+    }

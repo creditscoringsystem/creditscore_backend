@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from datetime import datetime
 from ..database import Base
 
 class User(Base):
@@ -13,3 +14,4 @@ class User(Base):
     disabled = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
     reset_token = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
