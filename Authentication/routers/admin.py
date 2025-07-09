@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from schemas.user import UserOut
-from crud.user import get_users, get_user_by_username, delete_user
-from database import get_db
-from core.security import decode_access_token
+from ..schemas.user import UserOut
+from ..crud.user import get_users, get_user_by_username, delete_user
+from ..database import get_db
+from ..core.security import decode_access_token
 from fastapi import Header
 from typing import List
 

@@ -8,9 +8,9 @@ from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
-from database import SessionLocal, engine, Base
-from models.user import User as UserModel
-from routers import auth, users, admin
+from .database import SessionLocal, engine, Base
+from .models.user import User as UserModel
+from .routers import auth, users, admin
 
 load_dotenv()
 
