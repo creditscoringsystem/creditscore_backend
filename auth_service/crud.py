@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
-from ..models.user import User
-from ..schemas.user import UserCreate, UserUpdatePassword
-from ..core.security import get_password_hash, verify_password
+from models.user import User
+from schemas.user import UserCreate, UserUpdatePassword
+from core.security import get_password_hash, verify_password
 import secrets
 from typing import List
 
