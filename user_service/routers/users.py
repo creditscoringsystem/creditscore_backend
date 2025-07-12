@@ -1,26 +1,26 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
-from schemas.user import UserOut
-from crud.crud import get_user_by_username
+from schemas.user import UserOut, UserCreate
+from crud.crud import get_user_by_username, create_user
 from database import get_db
-from core.security import decode_access_token
+import httpx
 
 router = APIRouter()
 
-def get_current_user(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    if token.startswith("Bearer "):
-        token = token.split(" ")[1]
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    user = get_user_by_username(db, payload.get("sub"))
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
+AUTH_SERVICE_URL = "http://localhost:8001/auth/verify-token"  # Sửa lại đúng port nếu cần
 
-@router.get("/users/me", response_model=UserOut)
-def get_me(user=Depends(get_current_user)):
-    return user
+async def get_current_user(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = auth_header.split(" ")[1]
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(AUTH_SERVICE_URL, json={"token": token})
+        if resp.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        payload = resp.json()
+    return payload
+
+@router.get("/users/me")
+async def get_me(payload=Depends(get_current_user)):
+    return payload

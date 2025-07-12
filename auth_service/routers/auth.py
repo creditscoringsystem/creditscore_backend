@@ -1,42 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Query
 from sqlalchemy.orm import Session
-from schemas.user import UserCreate, UserLogin, UserOut, UserForgotPassword, UserUpdatePassword
-from crud import create_user, get_user_by_username, get_user_by_email, get_user_by_phonenumber, update_password, set_reset_token, reset_password_with_token
-from database import get_db
-from core.security import verify_password, create_access_token, decode_access_token
-from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
+from schemas.user import UserCreate, UserLogin, UserOut, UserForgotPassword
+from crud import create_user, get_user_by_username, get_user_by_email, get_user_by_phonenumber, get_users, delete_user
+from database import get_db
+from core.security import verify_password, create_access_token, decode_access_token, get_password_hash
 from models.user import User
-from core.security import get_password_hash
+from typing import List, Optional
+import json
+import secrets
 
 router = APIRouter()
 
+def set_reset_token(db: Session, user: User) -> str:
+    """Generate and set reset token for user"""
+    token = secrets.token_urlsafe(32)
+    user.reset_token = token
+    db.commit()
+    return token
 
-@router.post(
-    "/signup",
-    response_model=UserOut,
-    responses={
-        200: {
-            "description": "User created successfully",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": 1,
-                        "username": "alice",
-                        "email": "alice@example.com",
-                        "phonenumber": "0123456789",
-                        "full_name": "Alice",
-                        "disabled": False,
-                        "is_admin": False
-                    }
-                }
-            }
-        },
-        400: {"description": "Bad request", "content": {"application/json": {"example": {"detail": "Username already registered"}}}}
-    }
-)
+@router.post("/signup", response_model=UserOut)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
-    # Chỉ cần 1 trong 3 trường username, email, phonenumber
     if not (user.username or user.email or user.phonenumber):
         raise HTTPException(status_code=400, detail="At least one of username, email, or phonenumber must be provided")
     if user.username and get_user_by_username(db, user.username):
@@ -45,20 +29,10 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     if user.phonenumber and get_user_by_phonenumber(db, user.phonenumber):
         raise HTTPException(status_code=400, detail="Phonenumber already registered")
-    # Không truyền is_admin từ client
     return create_user(db, user)
 
-@router.post(
-    "/login",
-    responses={
-        200: {
-            "description": "Login successful, access token set in cookie",
-            "content": {"application/json": {"example": {"detail": "Login successful. Access token set in cookie."}}}
-        },
-        401: {"description": "Unauthorized", "content": {"application/json": {"example": {"detail": "Incorrect username/email/phonenumber or password"}}}}
-    }
-)
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@router.post("/login")
+def login_for_access_token(form_data: UserLogin, db: Session = Depends(get_db)):
     identifier = form_data.username
     user = (
         get_user_by_username(db, identifier)
@@ -72,16 +46,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(data={"sub": user.username, "is_admin": user.is_admin})
-    response = Response()
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=60*30  # 30 phút
-    )
-    return response
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post(
     "/logout",
@@ -133,6 +98,12 @@ class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
+def get_token_from_request(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header.split(" ")[1]
+    return None
+
 @router.post(
     "/change-password",
     responses={
@@ -141,7 +112,7 @@ class ChangePasswordRequest(BaseModel):
     }
 )
 def change_password(data: ChangePasswordRequest, db: Session = Depends(get_db), request: Request = None):
-    token = request.cookies.get("access_token")
+    token = get_token_from_request(request)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_access_token(token)
@@ -165,7 +136,7 @@ class RefreshTokenRequest(BaseModel):
     }
 )
 def refresh_token(request: Request, response: Response):
-    token = request.cookies.get("access_token")
+    token = get_token_from_request(request)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_access_token(token)
@@ -184,9 +155,9 @@ def refresh_token(request: Request, response: Response):
     return {"detail": "Token refreshed successfully. You are still logged in."}
 
 class UpdateProfileRequest(BaseModel):
-    email: str = None
-    phonenumber: str = None
-    full_name: str = None
+    email: Optional[str] = None
+    phonenumber: Optional[str] = None
+    full_name: Optional[str] = None
 
 @router.post(
     "/update-profile",
@@ -212,7 +183,7 @@ class UpdateProfileRequest(BaseModel):
     }
 )
 def update_profile(data: UpdateProfileRequest, db: Session = Depends(get_db), request: Request = None):
-    token = request.cookies.get("access_token")
+    token = get_token_from_request(request)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_access_token(token)
@@ -230,6 +201,86 @@ def update_profile(data: UpdateProfileRequest, db: Session = Depends(get_db), re
     db.commit()
     db.refresh(user)
     return user
+
+@router.post("/verify-token")
+async def verify_token(request: Request):
+    data = await request.json()
+    token = data.get("token")
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return payload
+
+@router.get("/users", response_model=List[UserOut])
+def list_users(
+    query: Optional[str] = Query(None, description="Search by username, email, or phone"),
+    is_admin: Optional[bool] = Query(None, description="Filter by admin status"),
+    disabled: Optional[bool] = Query(None, description="Filter by active/inactive status"),
+    db: Session = Depends(get_db)
+):
+    users = get_users(db)
+    
+    # Filter by query
+    if query:
+        users = [
+            user for user in users
+            if (user.username and query.lower() in user.username.lower()) or
+               (user.email and query.lower() in user.email.lower()) or
+               (user.phonenumber and query.lower() in user.phonenumber.lower())
+        ]
+    
+    # Filter by admin status
+    if is_admin is not None:
+        users = [user for user in users if user.is_admin == is_admin]
+    
+    # Filter by disabled status
+    if disabled is not None:
+        users = [user for user in users if user.disabled == disabled]
+    
+    return users
+
+@router.delete("/users/{username}")
+def delete_user_endpoint(username: str, db: Session = Depends(get_db)):
+    user = get_user_by_username(db, username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    delete_user(db, user)
+    return {"detail": f"User '{username}' has been deleted successfully."}
+
+@router.post("/users/{username}/toggle-active")
+def toggle_user_active(username: str, db: Session = Depends(get_db)):
+    user = get_user_by_username(db, username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.disabled = not user.disabled
+    db.commit()
+    status = "locked (inactive)" if user.disabled else "unlocked (active)"
+    return {
+        "username": user.username,
+        "disabled": user.disabled,
+        "detail": f"User '{user.username}' has been {status}."
+    }
+
+@router.get("/summary")
+def user_summary(db: Session = Depends(get_db)):
+    from sqlalchemy import func
+    from models.user import User
+    from datetime import date
+    total_users = db.query(func.count()).select_from(User).scalar()
+    active_users = db.query(func.count()).select_from(User).filter_by(disabled=False).scalar()
+    inactive_users = db.query(func.count()).select_from(User).filter_by(disabled=True).scalar()
+    admin_users = db.query(func.count()).select_from(User).filter_by(is_admin=True).scalar()
+    today = date.today()
+    new_users_today = db.query(func.count()).select_from(User).filter(
+        func.date(User.created_at) == today
+    ).scalar()
+    return {
+        "total_users": total_users,
+        "active_users": active_users,
+        "inactive_users": inactive_users,
+        "admin_users": admin_users,
+        "new_users_today": new_users_today
+    }
 
 
 
