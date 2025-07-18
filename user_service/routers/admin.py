@@ -28,7 +28,7 @@ async def get_current_admin(request: Request):
         raise HTTPException(status_code=403, detail="Not admin")
     return payload
 
-@router.get("/admin/users")
+@router.get("/admin/users", response_model=List[UserOut])
 async def list_users_admin(admin=Depends(get_current_admin)):
     async with httpx.AsyncClient() as client:
         resp = await client.get(AUTH_USERS_URL)
@@ -37,11 +37,52 @@ async def list_users_admin(admin=Depends(get_current_admin)):
         users = resp.json()
     return users
 
-@router.delete("/admin/users/{username}")
-async def delete_user_admin(username: str, admin=Depends(get_current_admin)):
-    # Gọi API sang auth_service để xóa user
+@router.post("/admin/users", response_model=UserOut)
+async def create_user_admin(user: dict, admin=Depends(get_current_admin)):
     async with httpx.AsyncClient() as client:
-        resp = await client.delete(f"{AUTH_USERS_URL}/{username}")
+        resp = await client.post(AUTH_USERS_URL, json=user)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail="Cannot create user from auth_service")
+        created = resp.json()
+    return created
+
+@router.get("/admin/users/{user_id}", response_model=UserOut)
+async def get_user_detail_admin(user_id: int, admin=Depends(get_current_admin)):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{AUTH_USERS_URL}/{user_id}")
+        if resp.status_code == 404:
+            raise HTTPException(status_code=404, detail="User not found")
+        elif resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail="Cannot fetch user from auth_service")
+        user = resp.json()
+    return user
+
+@router.put("/admin/users/{user_id}", response_model=UserOut)
+async def update_user_admin(user_id: int, user: dict, admin=Depends(get_current_admin)):
+    async with httpx.AsyncClient() as client:
+        resp = await client.put(f"{AUTH_USERS_URL}/{user_id}", json=user)
+        if resp.status_code == 404:
+            raise HTTPException(status_code=404, detail="User not found")
+        elif resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail="Cannot update user from auth_service")
+        updated = resp.json()
+    return updated
+
+@router.patch("/admin/users/{user_id}", response_model=UserOut)
+async def patch_user_admin(user_id: int, user: dict, admin=Depends(get_current_admin)):
+    async with httpx.AsyncClient() as client:
+        resp = await client.patch(f"{AUTH_USERS_URL}/{user_id}", json=user)
+        if resp.status_code == 404:
+            raise HTTPException(status_code=404, detail="User not found")
+        elif resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail="Cannot patch user from auth_service")
+        patched = resp.json()
+    return patched
+
+@router.delete("/admin/users/{user_id}")
+async def delete_user_admin(user_id: int, admin=Depends(get_current_admin)):
+    async with httpx.AsyncClient() as client:
+        resp = await client.delete(f"{AUTH_USERS_URL}/{user_id}")
         if resp.status_code == 404:
             raise HTTPException(status_code=404, detail="User not found. Cannot delete.")
         elif resp.status_code != 200:

@@ -19,10 +19,9 @@ def set_reset_token(db: Session, user: User) -> str:
     db.commit()
     return token
 
-@router.post("/signup", response_model=UserOut)
-def signup(user: UserCreate, db: Session = Depends(get_db)):
-    if not (user.username or user.email or user.phonenumber):
-        raise HTTPException(status_code=400, detail="At least one of username, email, or phonenumber must be provided")
+@router.post("/users", response_model=UserOut)
+def create_user_endpoint(user: UserCreate, db: Session = Depends(get_db)):
+    # Đăng ký user mới
     if user.username and get_user_by_username(db, user.username):
         raise HTTPException(status_code=400, detail="Username already registered")
     if user.email and get_user_by_email(db, user.email):
@@ -219,8 +218,6 @@ def list_users(
     db: Session = Depends(get_db)
 ):
     users = get_users(db)
-    
-    # Filter by query
     if query:
         users = [
             user for user in users
@@ -228,38 +225,52 @@ def list_users(
                (user.email and query.lower() in user.email.lower()) or
                (user.phonenumber and query.lower() in user.phonenumber.lower())
         ]
-    
-    # Filter by admin status
     if is_admin is not None:
         users = [user for user in users if user.is_admin == is_admin]
-    
-    # Filter by disabled status
     if disabled is not None:
         users = [user for user in users if user.disabled == disabled]
-    
     return users
 
-@router.delete("/users/{username}")
-def delete_user_endpoint(username: str, db: Session = Depends(get_db)):
-    user = get_user_by_username(db, username)
+@router.get("/users/{user_id}", response_model=UserOut)
+def get_user_detail(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@router.put("/users/{user_id}", response_model=UserOut)
+def update_user(user_id: int, user_update: UserCreate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.username = user_update.username
+    user.email = user_update.email
+    user.phonenumber = user_update.phonenumber
+    user.full_name = user_update.full_name
+    user.disabled = user_update.disabled
+    db.commit()
+    db.refresh(user)
+    return user
+
+@router.patch("/users/{user_id}", response_model=UserOut)
+def patch_user(user_id: int, user_update: dict, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    for key, value in user_update.items():
+        if hasattr(user, key):
+            setattr(user, key, value)
+    db.commit()
+    db.refresh(user)
+    return user
+
+@router.delete("/users/{user_id}")
+def delete_user_endpoint(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     delete_user(db, user)
-    return {"detail": f"User '{username}' has been deleted successfully."}
-
-@router.post("/users/{username}/toggle-active")
-def toggle_user_active(username: str, db: Session = Depends(get_db)):
-    user = get_user_by_username(db, username)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user.disabled = not user.disabled
-    db.commit()
-    status = "locked (inactive)" if user.disabled else "unlocked (active)"
-    return {
-        "username": user.username,
-        "disabled": user.disabled,
-        "detail": f"User '{user.username}' has been {status}."
-    }
+    return {"detail": f"User '{user.username}' has been deleted successfully."}
 
 @router.get("/summary")
 def user_summary(db: Session = Depends(get_db)):
