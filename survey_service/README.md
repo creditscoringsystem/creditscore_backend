@@ -63,6 +63,11 @@ python import_questions.py
 uvicorn main:app --reload --host 0.0.0.0 --port 8002
 ```
 
+## ♻️ Resume survey (tiếp tục khảo sát dở dang)
+
+- `PATCH /answer` - Lưu từng câu trả lời lẻ (resume survey)
+- `GET /progress/{user_id}` - Lấy danh sách id câu đã trả lời và câu còn thiếu cho user
+
 ## 📊 API Endpoints
 
 ### Public Endpoints
@@ -70,7 +75,9 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8002
 
 ### User Endpoints (cần JWT token)
 - `POST /submit` - Gửi câu trả lời khảo sát
+- `PATCH /answer` - Lưu từng câu trả lời lẻ (resume)
 - `GET /answers/{user_id}` - Lấy câu trả lời của user
+- `GET /progress/{user_id}` - Lấy tiến độ hoàn thành survey
 
 ### Admin Endpoints (cần admin role)
 - `POST /admin/import-questions` - Import câu hỏi từ CSV
@@ -104,6 +111,7 @@ Service sử dụng JWT Bearer token:
 - **Anti-spam**: Chỉ cho phép submit 1 lần per user
 - **Validation**: Kiểm tra kiểu dữ liệu và giá trị hợp lệ
 - **Rate limiting**: Thông qua Kong API Gateway
+- **Resume survey**: Cho phép user lưu từng câu trả lời, lấy tiến độ hoàn thành để tiếp tục khảo sát dở dang.
 
 ## 📈 Thống kê và báo cáo
 

@@ -115,4 +115,34 @@ def question_statistics(question_id: int, adb: Session = Depends(get_answers_db)
             stats = {"average": None, "count": 0}
     else:
         stats = {"count": len(answers)}
-    return {"question_id": question_id, "question_text": question.question_text, "stats": stats} 
+    return {"question_id": question_id, "question_text": question.question_text, "stats": stats}
+
+@router.patch("/answer", dependencies=[Depends(security)])
+def save_single_answer(payload: schemas.SurveyAnswerBase, db: Session = Depends(get_answers_db), qdb: Session = Depends(get_questions_db), user=Depends(get_current_user)):
+    # Validate câu hỏi tồn tại
+    question = qdb.query(crud.models.SurveyQuestion).filter_by(id=payload.question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy câu hỏi với id {payload.question_id}")
+    ok, err = validate_answer(question, payload.answer)
+    if not ok:
+        raise HTTPException(status_code=400, detail=err)
+    # Lưu hoặc cập nhật câu trả lời
+    success = crud.save_user_answers(db, payload.user_id, [payload])
+    if not success:
+        raise HTTPException(status_code=409, detail="Không thể lưu câu trả lời.")
+    return {"message": "Answer saved successfully"}
+
+@router.get("/progress/{user_id}", dependencies=[Depends(security)])
+def get_survey_progress(user_id: str, qdb: Session = Depends(get_questions_db), adb: Session = Depends(get_answers_db), user=Depends(get_current_user)):
+    # Lấy tất cả câu hỏi
+    questions = qdb.query(crud.models.SurveyQuestion).all()
+    question_ids = set(q.id for q in questions)
+    # Lấy tất cả câu đã trả lời
+    answers = adb.query(crud.models.SurveyAnswer).filter_by(user_id=user_id).all()
+    answered_ids = set(a.question_id for a in answers)
+    missing_ids = list(question_ids - answered_ids)
+    return {
+        "answered": list(answered_ids),
+        "missing": missing_ids,
+        "total": len(question_ids)
+    } 
