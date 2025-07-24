@@ -1,159 +1,70 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from schemas.user import UserOut
-from crud.crud import get_users, get_user_by_username, delete_user
+from schemas.user import UserOut, UserCreate
+from crud.crud import get_users, get_user_by_username, get_user, delete_user, create_user
 from database import get_db
+from core.security import decode_access_token
+from models.user import User
 from typing import List, Optional
 from fastapi import Query
-import httpx
-from models.user import User
 
 router = APIRouter()
 
-AUTH_VERIFY_URL = "http://localhost:8001/auth/verify-token"  # Sửa lại đúng port nếu cần
-AUTH_USERS_URL = "http://localhost:8001/auth/users"
-AUTH_SUMMARY_URL = "http://localhost:8001/auth/summary"
-
-async def get_current_admin(request: Request):
+def get_current_admin(request: Request, db: Session = Depends(get_db)):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = auth_header.split(" ")[1]
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(AUTH_VERIFY_URL, json={"token": token})
-        if resp.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        payload = resp.json()
-    if not payload.get("is_admin"):
+    payload = decode_access_token(token)
+    if not payload or not payload.get("is_admin"):
         raise HTTPException(status_code=403, detail="Not admin")
-    return payload
-
-@router.get("/admin/users", response_model=List[UserOut])
-async def list_users_admin(admin=Depends(get_current_admin)):
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(AUTH_USERS_URL)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Cannot fetch users from auth_service")
-        users = resp.json()
-    return users
-
-@router.post("/admin/users", response_model=UserOut)
-async def create_user_admin(user: dict, admin=Depends(get_current_admin)):
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(AUTH_USERS_URL, json=user)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Cannot create user from auth_service")
-        created = resp.json()
-    return created
-
-@router.get("/admin/users/{user_id}", response_model=UserOut)
-async def get_user_detail_admin(user_id: int, admin=Depends(get_current_admin)):
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{AUTH_USERS_URL}/{user_id}")
-        if resp.status_code == 404:
-            raise HTTPException(status_code=404, detail="User not found")
-        elif resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Cannot fetch user from auth_service")
-        user = resp.json()
+    user = get_user_by_username(db, payload.get("sub"))
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Not admin")
     return user
 
-@router.put("/admin/users/{user_id}", response_model=UserOut)
-async def update_user_admin(user_id: int, user: dict, admin=Depends(get_current_admin)):
-    async with httpx.AsyncClient() as client:
-        resp = await client.put(f"{AUTH_USERS_URL}/{user_id}", json=user)
-        if resp.status_code == 404:
-            raise HTTPException(status_code=404, detail="User not found")
-        elif resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Cannot update user from auth_service")
-        updated = resp.json()
-    return updated
+@router.get("/admin/users", response_model=List[UserOut])
+def list_users_admin(admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    return get_users(db)
 
-@router.patch("/admin/users/{user_id}", response_model=UserOut)
-async def patch_user_admin(user_id: int, user: dict, admin=Depends(get_current_admin)):
-    async with httpx.AsyncClient() as client:
-        resp = await client.patch(f"{AUTH_USERS_URL}/{user_id}", json=user)
-        if resp.status_code == 404:
-            raise HTTPException(status_code=404, detail="User not found")
-        elif resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Cannot patch user from auth_service")
-        patched = resp.json()
-    return patched
+@router.post("/admin/users", response_model=UserOut)
+def create_user_admin(user: UserCreate, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    if user.username and get_user_by_username(db, user.username):
+        raise HTTPException(status_code=400, detail="Username already registered")
+    return create_user(db, user)
+
+@router.get("/admin/users/{user_id}", response_model=UserOut)
+def get_user_detail_admin(user_id: int, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    user = get_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 @router.delete("/admin/users/{user_id}")
-async def delete_user_admin(user_id: int, admin=Depends(get_current_admin)):
-    async with httpx.AsyncClient() as client:
-        resp = await client.delete(f"{AUTH_USERS_URL}/{user_id}")
-        if resp.status_code == 404:
-            raise HTTPException(status_code=404, detail="User not found. Cannot delete.")
-        elif resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Cannot delete user from auth_service")
-        result = resp.json()
-    return result
+def delete_user_admin(user_id: int, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    user = get_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found. Cannot delete.")
+    delete_user(db, user)
+    return {"detail": f"User '{user.username}' has been deleted successfully."}
 
-@router.post("/admin/users/{username}/toggle-active", tags=["admin"], responses={
-    200: {
-        "description": "Toggle user active/inactive status",
-        "content": {"application/json": {"example": {
-            "username": "alice",
-            "disabled": True,
-            "detail": "User 'alice' has been locked (inactive)."
-        }}}
-    },
-    404: {"description": "User not found", "content": {"application/json": {"example": {"detail": "User not found"}}}}
-})
-async def toggle_user_active(username: str, admin=Depends(get_current_admin)):
-    # Gọi API sang auth_service để toggle user status
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(f"{AUTH_USERS_URL}/{username}/toggle-active")
-        if resp.status_code == 404:
-            raise HTTPException(status_code=404, detail="User not found")
-        elif resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Cannot toggle user status from auth_service")
-        result = resp.json()
-    return result
-
-@router.get("/admin/summary", tags=["admin"], response_model=dict)
-async def admin_summary(admin=Depends(get_current_admin)):
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(AUTH_SUMMARY_URL)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Cannot fetch summary from auth_service")
-        summary = resp.json()
-    return summary
-
-@router.get("/admin/users/search", tags=["admin"], response_model=List[UserOut], responses={
-    200: {
-        "description": "Search and filter users",
-        "content": {"application/json": {"example": [
-            {
-                "id": 1,
-                "username": "alice",
-                "email": "alice@example.com",
-                "phonenumber": "0123456789",
-                "full_name": "Alice",
-                "disabled": False,
-                "is_admin": False
-            }
-        ]}}
+@router.get("/admin/summary", response_model=dict)
+def admin_summary(admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    from sqlalchemy import func
+    from models.user import User
+    from datetime import date
+    total_users = db.query(func.count()).select_from(User).scalar()
+    active_users = db.query(func.count()).select_from(User).filter_by(disabled=False).scalar()
+    inactive_users = db.query(func.count()).select_from(User).filter_by(disabled=True).scalar()
+    admin_users = db.query(func.count()).select_from(User).filter_by(is_admin=True).scalar()
+    today = date.today()
+    new_users_today = db.query(func.count()).select_from(User).filter(
+        func.date(User.created_at) == today
+    ).scalar()
+    return {
+        "total_users": total_users,
+        "active_users": active_users,
+        "inactive_users": inactive_users,
+        "admin_users": admin_users,
+        "new_users_today": new_users_today
     }
-})
-async def search_users(
-    query: Optional[str] = Query(None, description="Search by username, email, or phone"),
-    is_admin: Optional[bool] = Query(None, description="Filter by admin status"),
-    disabled: Optional[bool] = Query(None, description="Filter by active/inactive status"),
-    admin=Depends(get_current_admin)
-):
-    params = {}
-    if query:
-        params["query"] = query
-    if is_admin is not None:
-        params["is_admin"] = is_admin
-    if disabled is not None:
-        params["disabled"] = disabled
-
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(AUTH_USERS_URL, params=params)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="Cannot fetch users from auth_service")
-        users = resp.json()
-    return users

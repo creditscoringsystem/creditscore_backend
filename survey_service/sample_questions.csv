@@ -1,0 +1,21 @@
+question_text,question_type,question_group,options,order,is_required,version
+"Bạn bao nhiêu tuổi?",number,basic_info,,1,1,1
+"Giới tính của bạn là gì?",single_choice,basic_info,"['Nam', 'Nữ', 'Khác']",2,1,1
+"Trình độ học vấn cao nhất của bạn?",single_choice,basic_info,"['Tiểu học', 'THCS', 'THPT', 'Đại học', 'Sau đại học']",3,1,1
+"Bạn đang làm việc trong ngành nghề nào?",single_choice,basic_info,"['Công nhân', 'Nhân viên văn phòng', 'Kinh doanh', 'Tự do', 'Sinh viên', 'Khác']",4,1,1
+"Thu nhập hàng tháng của bạn (VNĐ)?",number,basic_info,,5,1,1
+"Bạn có bao nhiêu người phụ thuộc?",number,basic_info,,6,1,1
+"Bạn đã sử dụng thẻ tín dụng bao lâu?",single_choice,credit_limit_usage,"['Chưa từng', 'Dưới 1 năm', '1-3 năm', '3-5 năm', 'Trên 5 năm']",7,1,1
+"Giới hạn tín dụng hiện tại của bạn (VNĐ)?",number,credit_limit_usage,,8,1,1
+"Bạn thường sử dụng bao nhiêu % giới hạn tín dụng?",single_choice,credit_limit_usage,"['Dưới 30%', '30-50%', '50-70%', '70-90%', 'Trên 90%']",9,1,1
+"Số lượng thẻ tín dụng bạn đang sở hữu?",number,credit_limit_usage,,10,1,1
+"Bạn có thường xuyên thanh toán đúng hạn không?",single_choice,payment_history,"['Luôn luôn', 'Thường xuyên', 'Thỉnh thoảng', 'Hiếm khi', 'Chưa từng']",11,1,1
+"Số lần bạn thanh toán trễ hạn trong 12 tháng qua?",number,payment_history,,12,1,1
+"Bạn có từng bị phạt phí trễ hạn không?",single_choice,payment_history,"['Chưa từng', '1-2 lần', '3-5 lần', 'Trên 5 lần']",13,1,1
+"Bạn có thường xuyên thanh toán toàn bộ dư nợ không?",single_choice,payment_history,"['Luôn luôn', 'Thường xuyên', 'Thỉnh thoảng', 'Hiếm khi', 'Chưa từng']",14,1,1
+"Bạn có kế hoạch tài chính dài hạn không?",single_choice,psychometric,"['Có kế hoạch chi tiết', 'Có kế hoạch cơ bản', 'Chưa có kế hoạch', 'Không quan tâm']",15,1,1
+"Bạn có thường xuyên tiết kiệm không?",single_choice,psychometric,"['Luôn luôn', 'Thường xuyên', 'Thỉnh thoảng', 'Hiếm khi', 'Không bao giờ']",16,1,1
+"Khi gặp khó khăn tài chính, bạn thường làm gì?",single_choice,psychometric,"['Tìm việc làm thêm', 'Vay mượn từ người thân', 'Vay tín dụng', 'Bán tài sản', 'Khác']",17,1,1
+"Bạn có sẵn sàng vay tiền để đầu tư không?",single_choice,psychometric,"['Rất sẵn sàng', 'Sẵn sàng', 'Cân nhắc', 'Không sẵn sàng', 'Rất không sẵn sàng']",18,1,1
+"Bạn đánh giá mức độ rủi ro của mình như thế nào?",single_choice,psychometric,"['Rất thấp', 'Thấp', 'Trung bình', 'Cao', 'Rất cao']",19,1,1
+"Bạn có tin tưởng vào các tổ chức tài chính không?",single_choice,psychometric,"['Rất tin tưởng', 'Tin tưởng', 'Bình thường', 'Không tin tưởng', 'Rất không tin tưởng']",20,1,1 
