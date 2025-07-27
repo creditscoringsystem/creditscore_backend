@@ -1,8 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 import datetime
-
-Base = declarative_base()
+from.base import Base
 
 class Device(Base):
     __tablename__ = "devices"

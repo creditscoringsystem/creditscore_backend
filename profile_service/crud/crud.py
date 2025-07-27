@@ -4,6 +4,7 @@ from models.device import Device
 from models.consent import Consent
 from schemas.profile import ProfileUpdate
 from schemas.device import DeviceBase
+from datetime import datetime
 
 # Profile CRUD
 
@@ -14,8 +15,23 @@ def update_profile(db: Session, user_id: str, payload: ProfileUpdate):
     profile = db.query(Profile).filter(Profile.user_id == user_id).first()
     if not profile:
         return None
-    for field, value in payload.dict(exclude_unset=True).items():
+    
+    # Convert payload to dict and handle date_of_birth
+    update_data = payload.dict(exclude_unset=True)
+    
+    # Convert date_of_birth string to Date object if provided
+    if 'date_of_birth' in update_data and update_data['date_of_birth']:
+        try:
+            update_data['date_of_birth'] = datetime.strptime(
+                update_data['date_of_birth'], "%Y-%m-%d"
+            ).date()
+        except ValueError:
+            raise ValueError("Invalid date format. Use YYYY-MM-DD")
+    
+    # Update fields
+    for field, value in update_data.items():
         setattr(profile, field, value)
+    
     db.commit()
     db.refresh(profile)
     return profile
@@ -42,7 +58,6 @@ def revoke_consent(db: Session, user_id: str, consent_id: int):
     consent = db.query(Consent).filter(Consent.user_id == user_id, Consent.id == consent_id).first()
     if consent:
         consent.granted = False
-        from datetime import datetime
         consent.revoked_at = datetime.utcnow()
         db.commit()
         db.refresh(consent)
