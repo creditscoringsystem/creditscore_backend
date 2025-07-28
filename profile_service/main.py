@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from routers import profile, security, preferences, consent
+from routers import profile, preferences
 from models.base import Base
 from database import engine
 
@@ -9,16 +9,14 @@ app = FastAPI(
     description="""
     ## Profile Service API
     
-    Quản lý thông tin hồ sơ cá nhân, bảo mật, tùy chọn và đồng ý của người dùng.
+    Quản lý thông tin hồ sơ cá nhân và tùy chọn của người dùng.
     
     ### Authentication
     Tất cả endpoints yêu cầu header `X-User-Id` để xác thực người dùng.
     
     ### Endpoints
     - **Profile**: Quản lý thông tin cá nhân
-    - **Security**: Quản lý bảo mật và thiết bị
-    - **Preferences**: Quản lý tùy chọn người dùng
-    - **Consent**: Quản lý đồng ý và quyền riêng tư
+    - **Preferences**: Quản lý theme và language
     """,
     version="1.0.0",
     contact={
@@ -30,6 +28,33 @@ app = FastAPI(
         "url": "https://opensource.org/licenses/MIT",
     },
 )
+
+@app.get(
+    "/health",
+    summary="Health Check",
+    description="Kiểm tra trạng thái hoạt động của service",
+    responses={
+        200: {
+            "description": "Service đang hoạt động bình thường",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "healthy",
+                        "service": "profile_service",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+        }
+    }
+)
+def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "profile_service", 
+        "version": "1.0.0"
+    }
 
 def custom_openapi():
     if app.openapi_schema:
@@ -64,8 +89,6 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 app.include_router(profile.router)
-app.include_router(security.router)
 app.include_router(preferences.router)
-app.include_router(consent.router)
 
 Base.metadata.create_all(bind=engine)

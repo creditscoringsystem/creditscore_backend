@@ -54,6 +54,36 @@ def remove_device(db: Session, user_id: str, device_id: str):
 def get_consents(db: Session, user_id: str):
     return db.query(Consent).filter(Consent.user_id == user_id).all()
 
+def grant_consent(db: Session, user_id: str, service: str, scope: str = None):
+    """Grant consent for a service"""
+    # Check if consent already exists
+    existing = db.query(Consent).filter(
+        Consent.user_id == user_id,
+        Consent.service == service,
+        Consent.scope == scope
+    ).first()
+    
+    if existing:
+        # Update existing consent
+        existing.granted = True
+        existing.revoked_at = None
+        db.commit()
+        db.refresh(existing)
+        return existing
+    
+    # Create new consent
+    new_consent = Consent(
+        user_id=user_id,
+        service=service,
+        scope=scope,
+        granted=True,
+        created_at=datetime.utcnow()
+    )
+    db.add(new_consent)
+    db.commit()
+    db.refresh(new_consent)
+    return new_consent
+
 def revoke_consent(db: Session, user_id: str, consent_id: int):
     consent = db.query(Consent).filter(Consent.user_id == user_id, Consent.id == consent_id).first()
     if consent:

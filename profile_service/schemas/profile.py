@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 
 class ProfileOut(BaseModel):
     user_id: str = Field(..., description="ID duy nhất của người dùng")
@@ -8,10 +8,17 @@ class ProfileOut(BaseModel):
     email: Optional[str] = Field(None, description="Email liên lạc (có thể khác với email đăng ký)")
     phone: Optional[str] = Field(None, description="Số điện thoại")
     avatar: Optional[str] = Field(None, description="URL ảnh đại diện")
-    date_of_birth: Optional[str] = Field(None, description="Ngày sinh (YYYY-MM-DD)")
+    date_of_birth: Optional[date] = Field(None, description="Ngày sinh")
     address: Optional[str] = Field(None, description="Địa chỉ")
     created_at: Optional[datetime] = Field(None, description="Thời gian tạo")
     updated_at: Optional[datetime] = Field(None, description="Thời gian cập nhật cuối")
+    
+    @field_serializer('date_of_birth')
+    def serialize_date_of_birth(self, value: Optional[date]) -> Optional[str]:
+        """Convert date to string format YYYY-MM-DD"""
+        if value is None:
+            return None
+        return value.strftime("%Y-%m-%d")
     
     class Config:
         from_attributes = True

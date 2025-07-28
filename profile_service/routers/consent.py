@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from schemas.consent import ConsentOut
+from schemas.consent import ConsentOut, ConsentCreate
 from crud import crud
 from database import SessionLocal
 from core.security import get_current_user
+from models.consent import Consent
+from datetime import datetime
 
 router = APIRouter(prefix="/consent", tags=["consent"])
 
@@ -13,6 +15,68 @@ def get_db():
         yield db
     finally:
         db.close()
+
+@router.post(
+    "/grant",
+    response_model=ConsentOut,
+    summary="Cấp quyền đồng ý",
+    description="""
+    Cấp quyền đồng ý cho một dịch vụ.
+    
+    **Yêu cầu:**
+    - Header `X-User-Id` phải được cung cấp
+    - Consent data phải hợp lệ
+    
+    **Lưu ý:**
+    - Tạo consent mới hoặc cập nhật consent đã tồn tại
+    - Nếu consent đã bị thu hồi, sẽ được kích hoạt lại
+    """,
+    responses={
+        200: {
+            "description": "Consent đã được cấp"
+        },
+        401: {
+            "description": "Thiếu header X-User-Id"
+        },
+        422: {
+            "description": "Dữ liệu consent không hợp lệ"
+        }
+    }
+)
+def grant_consent(
+    consent_data: ConsentCreate,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    """Grant consent for a service"""
+    
+    # Check if consent already exists
+    existing = db.query(Consent).filter(
+        Consent.user_id == user["user_id"],
+        Consent.service == consent_data.service,
+        Consent.scope == consent_data.scope
+    ).first()
+    
+    if existing:
+        # Update existing consent
+        existing.granted = True
+        existing.revoked_at = None
+        db.commit()
+        db.refresh(existing)
+        return existing
+    
+    # Create new consent
+    new_consent = Consent(
+        user_id=user["user_id"],
+        service=consent_data.service,
+        scope=consent_data.scope,
+        granted=True,
+        created_at=datetime.utcnow()
+    )
+    db.add(new_consent)
+    db.commit()
+    db.refresh(new_consent)
+    return new_consent
 
 @router.get(
     "/me",

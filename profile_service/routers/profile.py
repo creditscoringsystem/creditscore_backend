@@ -32,38 +32,13 @@ def get_db():
     """,
     responses={
         200: {
-            "description": "Thông tin hồ sơ cá nhân",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "user_id": "user_12345",
-                        "full_name": "Nguyễn Văn A",
-                        "email": "nguyenvana@gmail.com",
-                        "phone": "0123456789",
-                        "avatar": "https://example.com/avatar.jpg",
-                        "date_of_birth": "1990-01-01",
-                        "address": "123 Đường ABC, Quận 1, TP.HCM",
-                        "created_at": "2024-01-01T00:00:00Z",
-                        "updated_at": "2024-01-01T00:00:00Z"
-                    }
-                }
-            }
+            "description": "Thông tin hồ sơ cá nhân"
         },
         401: {
-            "description": "Thiếu header X-User-Id",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Missing user identity (X-User-Id header)"}
-                }
-            }
+            "description": "Thiếu header X-User-Id"
         },
         404: {
-            "description": "Không tìm thấy profile",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Profile not found"}
-                }
-            }
+            "description": "Không tìm thấy profile"
         }
     }
 )
@@ -102,28 +77,10 @@ def get_my_profile(db: Session = Depends(get_db), user=Depends(get_current_user)
             "description": "Thiếu header X-User-Id"
         },
         404: {
-            "description": "Không tìm thấy profile để cập nhật",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Profile not found"}
-                }
-            }
+            "description": "Không tìm thấy profile để cập nhật"
         },
         422: {
-            "description": "Dữ liệu không hợp lệ",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": [
-                            {
-                                "loc": ["body", "email"],
-                                "msg": "invalid email format",
-                                "type": "value_error"
-                            }
-                        ]
-                    }
-                }
-            }
+            "description": "Dữ liệu không hợp lệ"
         }
     }
 )
@@ -160,12 +117,7 @@ def update_my_profile(payload: ProfileUpdate, db: Session = Depends(get_db), use
             "description": "Hồ sơ đã được tạo thành công"
         },
         400: {
-            "description": "Profile đã tồn tại",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Profile already exists"}
-                }
-            }
+            "description": "Profile đã tồn tại"
         },
         401: {
             "description": "Thiếu header X-User-Id"

@@ -2,6 +2,18 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
+class ConsentCreate(BaseModel):
+    service: str = Field(..., description="Tên dịch vụ yêu cầu consent")
+    scope: Optional[str] = Field(None, description="Phạm vi quyền được cấp")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "service": "credit_score",
+                "scope": "read_profile"
+            }
+        }
+
 class ConsentOut(BaseModel):
     id: int = Field(..., description="ID duy nhất của consent")
     service: str = Field(..., description="Tên dịch vụ yêu cầu consent")

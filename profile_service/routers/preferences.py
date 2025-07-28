@@ -15,7 +15,7 @@ router = APIRouter(prefix="/preferences", tags=["preferences"])
     - Header `X-User-Id` phải được cung cấp
     
     **Trả về:**
-    - Thông tin tùy chọn hiện tại
+    - Thông tin tùy chọn hiện tại (theme, language)
     """,
     responses={
         200: {
@@ -24,8 +24,7 @@ router = APIRouter(prefix="/preferences", tags=["preferences"])
                 "application/json": {
                     "example": {
                         "theme": "light",
-                        "language": "vi",
-                        "notifications": ["email", "sms", "push"]
+                        "language": "vi"
                     }
                 }
             }
@@ -36,7 +35,8 @@ router = APIRouter(prefix="/preferences", tags=["preferences"])
     }
 )
 def get_preferences(user=Depends(get_current_user)):
-    return Preferences()
+    # Demo: trả về preferences mặc định
+    return Preferences(theme="light", language="vi")
 
 @router.put(
     "/me",
@@ -47,6 +47,10 @@ def get_preferences(user=Depends(get_current_user)):
     
     **Yêu cầu:**
     - Header `X-User-Id` phải được cung cấp
+    
+    **Tùy chọn:**
+    - **theme**: `light` | `dark` | `auto`
+    - **language**: `vi` | `en` | `zh`
     
     **Lưu ý:**
     - Chỉ cập nhật các trường được cung cấp
@@ -60,22 +64,10 @@ def get_preferences(user=Depends(get_current_user)):
             "description": "Thiếu header X-User-Id"
         },
         422: {
-            "description": "Dữ liệu không hợp lệ",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": [
-                            {
-                                "loc": ["body", "theme"],
-                                "msg": "string does not match regex",
-                                "type": "value_error"
-                            }
-                        ]
-                    }
-                }
-            }
+            "description": "Dữ liệu không hợp lệ"
         }
     }
 )
 def update_preferences(payload: Preferences, user=Depends(get_current_user)):
+    # Demo: trả về preferences đã cập nhật
     return payload 
