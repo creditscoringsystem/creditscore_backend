@@ -9,11 +9,9 @@ def create_user(db: Session, user: UserCreate):
     # Kiểm tra số lượng user trong DB
     user_count = db.query(User).count()
     is_admin = user_count == 0  # User đầu tiên là admin
+    
     db_user = User(
         username=user.username,
-        email=user.email,
-        phonenumber=user.phonenumber,
-        full_name=user.full_name,
         hashed_password=get_password_hash(user.password),
         disabled=user.disabled,
         is_admin=is_admin
@@ -25,12 +23,6 @@ def create_user(db: Session, user: UserCreate):
 
 def get_user_by_username(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
-
-def get_user_by_email(db: Session, email: str):
-    return db.query(User).filter(User.email == email).first()
-
-def get_user_by_phonenumber(db: Session, phonenumber: str):
-    return db.query(User).filter(User.phonenumber == phonenumber).first()
 
 def get_user(db: Session, user_id: int):
     return db.query(User).filter(User.id == user_id).first()

@@ -1,74 +1,70 @@
-from pydantic import BaseModel, EmailStr, root_validator
+from pydantic import BaseModel, Field
 from typing import Optional
+from datetime import datetime
 
 class UserBase(BaseModel):
-    username: str
-    email: Optional[EmailStr] = None
-    phonenumber: Optional[str] = None
-    full_name: Optional[str] = None
-    disabled: Optional[bool] = False
-    is_admin: Optional[bool] = False
+    username: str = Field(..., description="Tên đăng nhập duy nhất")
+    disabled: Optional[bool] = Field(False, description="Trạng thái tài khoản")
+    is_admin: Optional[bool] = Field(False, description="Quyền admin")
 
 class UserCreate(UserBase):
-    password: str
-    is_admin: Optional[bool] = None  # Không cho phép client truyền is_admin khi đăng ký
+    password: str = Field(..., description="Mật khẩu", min_length=6)
+    is_admin: Optional[bool] = Field(False, description="Không cho phép client truyền is_admin khi đăng ký")
 
-    @root_validator(pre=True)
-    def at_least_one_identifier(cls, values):
-        username = values.get('username')
-        email = values.get('email')
-        phonenumber = values.get('phonenumber')
-        if not (username or email or phonenumber):
-            raise ValueError('At least one of username, email, or phonenumber must be provided')
-        return values
-
-    model_config = {
-        "json_schema_extra": {
+    class Config:
+        json_schema_extra = {
             "example": {
                 "username": "alice",
-                "email": "alice@example.com",
-                "phonenumber": "0123456789",
-                "full_name": "Alice",
-                "password": "yourpassword"
+                "password": "yourpassword123"
             }
         }
-    }
 
 class UserOut(UserBase):
-    id: int
+    id: int = Field(..., description="ID duy nhất của user")
+    created_at: Optional[datetime] = Field(None, description="Thời gian tạo tài khoản")
+    
     class Config:
-        from_attributes = True 
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "username": "alice",
+                "disabled": False,
+                "is_admin": False,
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+        }
 
 class UserLogin(BaseModel):
-    username: str
-    password: str
-    model_config = {
-        "json_schema_extra": {
+    username: str = Field(..., description="Tên đăng nhập")
+    password: str = Field(..., description="Mật khẩu")
+    
+    class Config:
+        json_schema_extra = {
             "example": {
                 "username": "alice",
-                "password": "yourpassword"
+                "password": "yourpassword123"
             }
         }
-    }
 
 class UserUpdatePassword(BaseModel):
-    old_password: str
-    new_password: str
-    model_config = {
-        "json_schema_extra": {
+    old_password: str = Field(..., description="Mật khẩu cũ")
+    new_password: str = Field(..., description="Mật khẩu mới", min_length=6)
+    
+    class Config:
+        json_schema_extra = {
             "example": {
                 "old_password": "oldpassword",
-                "new_password": "newpassword"
+                "new_password": "newpassword123"
             }
         }
-    }
 
 class UserForgotPassword(BaseModel):
-    username: str
-    model_config = {
-        "json_schema_extra": {
+    username: str = Field(..., description="Tên đăng nhập")
+    
+    class Config:
+        json_schema_extra = {
             "example": {
                 "username": "alice"
             }
         }
-    }
