@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import os
 from fastapi.openapi.utils import get_openapi
 from routers import profile, preferences
 from models.base import Base
@@ -67,21 +68,20 @@ def custom_openapi():
         routes=app.routes,
     )
     
-    # Thêm security scheme cho X-User-Id header
-    openapi_schema["components"]["securitySchemes"] = {
-        "X-User-Id": {
-            "type": "apiKey",
-            "in": "header",
-            "name": "X-User-Id",
-            "description": "User ID để xác thực người dùng"
+    # Chỉ áp dụng security scheme ngoài DEV mode
+    if os.getenv("AUTH_MODE", "kong").lower() != "dev":
+        openapi_schema["components"]["securitySchemes"] = {
+            "X-User-Id": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-User-Id",
+                "description": "User ID để xác thực người dùng"
+            }
         }
-    }
-    
-    # Áp dụng security cho tất cả endpoints
-    for path in openapi_schema["paths"]:
-        for method in openapi_schema["paths"][path]:
-            if method.lower() in ["get", "post", "put", "delete"]:
-                openapi_schema["paths"][path][method]["security"] = [{"X-User-Id": []}]
+        for path in openapi_schema["paths"]:
+            for method in openapi_schema["paths"][path]:
+                if method.lower() in ["get", "post", "put", "delete"]:
+                    openapi_schema["paths"][path][method]["security"] = [{"X-User-Id": []}]
     
     app.openapi_schema = openapi_schema
     return app.openapi_schema
