@@ -35,9 +35,8 @@ pip install -r requirements.txt
 
 ### 2. Tạo file .env
 ```bash
-# Database URLs
-QUESTIONS_DATABASE_URL=postgresql://kong:kong@localhost:5432/survey_questions
-ANSWERS_DATABASE_URL=postgresql://kong:kong@localhost:5432/survey_answers
+# Database URL (gộp 1 DB)
+SURVEY_DATABASE_URL=postgresql://kong:kong@localhost:5432/survey
 
 # JWT Settings
 SECRET_KEY=your-secret-key-here-change-in-production
@@ -71,18 +70,18 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8002
 ## 📊 API Endpoints
 
 ### Public Endpoints
-- `GET /questions` - Lấy danh sách tất cả câu hỏi
+- `GET /survey/questions` - Lấy danh sách tất cả câu hỏi
 
 ### User Endpoints (cần JWT token)
-- `POST /submit` - Gửi câu trả lời khảo sát
-- `PATCH /answer` - Lưu từng câu trả lời lẻ (resume)
-- `GET /answers/{user_id}` - Lấy câu trả lời của user
-- `GET /progress/{user_id}` - Lấy tiến độ hoàn thành survey
+- `POST /survey/submit` - Gửi câu trả lời khảo sát
+- `PATCH /survey/answer` - Lưu từng câu trả lời lẻ (resume)
+- `GET /survey/answers/{user_id}` - Lấy câu trả lời của user
+- `GET /survey/progress/{user_id}` - Lấy tiến độ hoàn thành survey
 
 ### Admin Endpoints (cần admin role)
-- `POST /admin/import-questions` - Import câu hỏi từ CSV
-- `GET /admin/statistics` - Thống kê tổng quan
-- `GET /admin/question-stats/{question_id}` - Thống kê theo câu hỏi
+- `POST /survey/admin/import-questions` - Import câu hỏi từ CSV
+- `GET /survey/admin/statistics` - Thống kê tổng quan
+- `GET /survey/admin/question-stats/{question_id}` - Thống kê theo câu hỏi
 
 ## 🔐 Authentication
 

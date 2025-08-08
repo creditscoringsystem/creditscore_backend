@@ -3,27 +3,19 @@ from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from schemas import survey as schemas
 from crud import crud
-from database import QuestionsSessionLocal, AnswersSessionLocal
+from database import SessionLocal
 from typing import List
 import shutil
 import os
 from core.validation import validate_answer
 from core.security import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(prefix="/survey", tags=["survey"])
 security = HTTPBearer()
 
 # Dependency lấy session cho questions_db
-def get_questions_db():
-    db = QuestionsSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# Dependency lấy session cho answers_db
-def get_answers_db():
-    db = AnswersSessionLocal()
+def get_db():
+    db = SessionLocal()
     try:
         yield db
     finally:
@@ -31,16 +23,16 @@ def get_answers_db():
 
 # Lấy danh sách câu hỏi cho user
 @router.get("/questions", response_model=List[schemas.SurveyQuestionOut])
-def get_questions(db: Session = Depends(get_questions_db)):
+def get_questions(db: Session = Depends(get_db)):
     return crud.get_all_questions(db)
 
 # User gửi câu trả lời (nhiều câu hỏi cùng lúc)
 @router.post("/submit", dependencies=[Depends(security)])
-def submit_answers(payload: schemas.SurveySubmitRequest, db: Session = Depends(get_answers_db), qdb: Session = Depends(get_questions_db), user=Depends(get_current_user)):
+def submit_answers(payload: schemas.SurveySubmitRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Chỉ cho user đã đăng nhập gửi câu trả lời (user lấy từ JWT)
     # Có thể so khớp user_id trong token và payload nếu muốn tăng bảo mật
     errors = []
-    questions = qdb.query(crud.models.SurveyQuestion).all()
+    questions = db.query(crud.models.SurveyQuestion).all()
     total_questions = len(questions)
     for ans in payload.answers:
         question = next((q for q in questions if q.id == ans.question_id), None)
@@ -60,13 +52,13 @@ def submit_answers(payload: schemas.SurveySubmitRequest, db: Session = Depends(g
 
 # Lấy câu trả lời của user
 @router.get("/answers/{user_id}", response_model=List[schemas.SurveyAnswerOut], dependencies=[Depends(security)])
-def get_answers(user_id: str, db: Session = Depends(get_answers_db), user=Depends(get_current_user)):
+def get_answers(user_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Chỉ cho user đã đăng nhập xem câu trả lời (có thể kiểm tra user_id == user["user_id"] nếu muốn)
     return crud.get_user_answers(db, user_id)
 
 # Admin import câu hỏi từ file CSV
 @router.post("/admin/import-questions", dependencies=[Depends(security)])
-def import_questions(file: UploadFile = File(...), db: Session = Depends(get_questions_db), admin=Depends(require_admin)):
+def import_questions(file: UploadFile = File(...), db: Session = Depends(get_db), admin=Depends(require_admin)):
     # Chỉ cho admin import câu hỏi
     temp_path = f"temp_{file.filename}"
     with open(temp_path, "wb") as buffer:
@@ -78,18 +70,18 @@ def import_questions(file: UploadFile = File(...), db: Session = Depends(get_que
     return {"message": "Questions imported successfully"}
 
 @router.get("/admin/statistics", dependencies=[Depends(security)])
-def survey_statistics(adb: Session = Depends(get_answers_db), admin=Depends(require_admin)):
+def survey_statistics(db: Session = Depends(get_db), admin=Depends(require_admin)):
     # Tổng số user đã trả lời survey (dựa vào user_id duy nhất trong survey_answers)
-    user_count = adb.query(crud.models.SurveyAnswer.user_id).distinct().count()
+    user_count = db.query(crud.models.SurveyAnswer.user_id).distinct().count()
     return {"total_users_submitted": user_count}
 
 @router.get("/admin/question-stats/{question_id}", dependencies=[Depends(security)])
-def question_statistics(question_id: int, adb: Session = Depends(get_answers_db), qdb: Session = Depends(get_questions_db), admin=Depends(require_admin)):
+def question_statistics(question_id: int, db: Session = Depends(get_db), admin=Depends(require_admin)):
     # Thống kê đáp án cho 1 câu hỏi
-    question = qdb.query(crud.models.SurveyQuestion).filter_by(id=question_id).first()
+    question = db.query(crud.models.SurveyQuestion).filter_by(id=question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi")
-    answers = adb.query(crud.models.SurveyAnswer).filter_by(question_id=question_id).all()
+    answers = db.query(crud.models.SurveyAnswer).filter_by(question_id=question_id).all()
     stats = {}
     if question.question_type in ["single_choice", "multiple_choice"]:
         # Đếm tần suất từng đáp án
@@ -118,9 +110,9 @@ def question_statistics(question_id: int, adb: Session = Depends(get_answers_db)
     return {"question_id": question_id, "question_text": question.question_text, "stats": stats}
 
 @router.patch("/answer", dependencies=[Depends(security)])
-def save_single_answer(payload: schemas.SurveyAnswerBase, db: Session = Depends(get_answers_db), qdb: Session = Depends(get_questions_db), user=Depends(get_current_user)):
+def save_single_answer(payload: schemas.SurveyAnswerBase, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Validate câu hỏi tồn tại
-    question = qdb.query(crud.models.SurveyQuestion).filter_by(id=payload.question_id).first()
+    question = db.query(crud.models.SurveyQuestion).filter_by(id=payload.question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail=f"Không tìm thấy câu hỏi với id {payload.question_id}")
     ok, err = validate_answer(question, payload.answer)
@@ -133,12 +125,12 @@ def save_single_answer(payload: schemas.SurveyAnswerBase, db: Session = Depends(
     return {"message": "Answer saved successfully"}
 
 @router.get("/progress/{user_id}", dependencies=[Depends(security)])
-def get_survey_progress(user_id: str, qdb: Session = Depends(get_questions_db), adb: Session = Depends(get_answers_db), user=Depends(get_current_user)):
+def get_survey_progress(user_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Lấy tất cả câu hỏi
-    questions = qdb.query(crud.models.SurveyQuestion).all()
+    questions = db.query(crud.models.SurveyQuestion).all()
     question_ids = set(q.id for q in questions)
     # Lấy tất cả câu đã trả lời
-    answers = adb.query(crud.models.SurveyAnswer).filter_by(user_id=user_id).all()
+    answers = db.query(crud.models.SurveyAnswer).filter_by(user_id=user_id).all()
     answered_ids = set(a.question_id for a in answers)
     missing_ids = list(question_ids - answered_ids)
     return {

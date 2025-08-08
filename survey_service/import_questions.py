@@ -1,7 +1,6 @@
 import pandas as pd
 import ast
-from sqlalchemy.orm import Session
-from database import QuestionsSessionLocal
+from database import SessionLocal
 from models.survey import SurveyQuestion
 
 def import_questions_from_csv(csv_file_path: str):
@@ -12,7 +11,7 @@ def import_questions_from_csv(csv_file_path: str):
         print(f"📖 Đọc được {len(df)} câu hỏi từ file CSV")
         
         # Tạo session database
-        db = QuestionsSessionLocal()
+        db = SessionLocal()
         
         # Xóa tất cả câu hỏi cũ (nếu có)
         db.query(SurveyQuestion).delete()
@@ -24,11 +23,12 @@ def import_questions_from_csv(csv_file_path: str):
             try:
                 # Xử lý options (chuyển từ string sang list)
                 options = None
-                if pd.notna(row['options']) and row['options']:
+                if pd.notna(row['options']) and str(row['options']).strip():
                     try:
-                        options = ast.literal_eval(row['options'])
+                        options = ast.literal_eval(str(row['options']))
                     except:
-                        options = row['options'].split(',') if ',' in row['options'] else [row['options']]
+                        value = str(row['options'])
+                        options = value.split(',') if ',' in value else [value]
                 
                 # Tạo câu hỏi mới
                 question = SurveyQuestion(
@@ -37,7 +37,7 @@ def import_questions_from_csv(csv_file_path: str):
                     question_group=row['question_group'],
                     options=options,
                     order=int(row['order']),
-                    is_required=int(row['is_required']),
+                    is_required=bool(int(row['is_required'])),
                     version=int(row['version'])
                 )
                 
