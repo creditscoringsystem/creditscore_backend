@@ -70,16 +70,16 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8002
 ## 📊 API Endpoints
 
 ### Public Endpoints
-- `GET /survey/questions` - Lấy danh sách tất cả câu hỏi
+- `GET /survey/questions` - Lấy danh sách tất cả câu hỏi (summary, description rõ ràng trong Swagger)
 
 ### User Endpoints (cần JWT token)
-- `POST /survey/submit` - Gửi câu trả lời khảo sát
-- `PATCH /survey/answer` - Lưu từng câu trả lời lẻ (resume)
+- `POST /survey/submit` - Gửi câu trả lời khảo sát (có ví dụ payload trong Swagger)
+- `PATCH /survey/answer` - Lưu từng câu trả lời lẻ (resume) (có ví dụ payload)
 - `GET /survey/answers/{user_id}` - Lấy câu trả lời của user
 - `GET /survey/progress/{user_id}` - Lấy tiến độ hoàn thành survey
 
 ### Admin Endpoints (cần admin role)
-- `POST /survey/admin/import-questions` - Import câu hỏi từ CSV
+- `POST /survey/admin/import-questions` - Import câu hỏi từ CSV/Excel (mô tả định dạng file trong Swagger)
 - `GET /survey/admin/statistics` - Thống kê tổng quan
 - `GET /survey/admin/question-stats/{question_id}` - Thống kê theo câu hỏi
 

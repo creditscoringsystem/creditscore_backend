@@ -3,6 +3,7 @@ from typing import List, Optional
 from models import survey as models
 from schemas import survey as schemas
 import pandas as pd
+import os
 
 # Lấy danh sách tất cả câu hỏi (theo thứ tự)
 def get_all_questions(db: Session) -> List[models.SurveyQuestion]:
@@ -18,7 +19,44 @@ def create_question(db: Session, question: schemas.SurveyQuestionCreate) -> mode
 
 # Import câu hỏi từ file CSV (dùng pandas)
 def import_questions_from_csv(db: Session, csv_path: str):
-    df = pd.read_csv(csv_path)
+    # Hỗ trợ CSV hoặc Excel; kiểm tra phần mở rộng
+    _, ext = os.path.splitext(csv_path.lower())
+
+    if ext in [".csv", ".txt"]:
+        # Đọc CSV với fallback encoding và auto-detect delimiter
+        encodings_to_try = ["utf-8", "utf-8-sig", "latin1"]
+        last_err: Exception | None = None
+        df = None
+        for enc in encodings_to_try:
+            try:
+                df = pd.read_csv(csv_path, encoding=enc, sep=None, engine="python")
+                break
+            except Exception as e:  # broad intentionally for parsing robustness
+                last_err = e
+                continue
+        if df is None:
+            raise ValueError(
+                f"Failed to read CSV. Ensure the file is a valid CSV. Last error: {last_err}"
+            )
+    elif ext in [".xlsx", ".xls"]:
+        try:
+            df = pd.read_excel(csv_path)
+        except Exception as e:
+            raise ValueError(f"Failed to read Excel file: {e}")
+    else:
+        raise ValueError("Unsupported file type. Please upload a CSV or Excel (.xlsx) file.")
+
+    # Chuẩn hoá tên cột
+    df.columns = [str(c).strip().lower() for c in df.columns]
+
+    required_cols = ["question_text", "question_type", "question_group", "order"]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(
+            "Missing required columns: "
+            + ", ".join(missing)
+            + ". Expected header: question_text,question_type,question_group,options,order,is_required,version"
+        )
     for _, row in df.iterrows():
         # Lưu ý: options phải là list dạng JSON hoặc phân tách bằng dấu ; trong file CSV
         options = None
@@ -33,13 +71,13 @@ def import_questions_from_csv(db: Session, csv_path: str):
             except Exception:
                 options = None
         question = models.SurveyQuestion(
-            question_text=row['question_text'],
-            question_type=row['question_type'],
-            question_group=row['question_group'],
+            question_text=str(row['question_text']).strip(),
+            question_type=str(row['question_type']).strip(),
+            question_group=str(row['question_group']).strip(),
             options=options,
             order=int(row['order']),
-            is_required=bool(int(row.get('is_required', 1))),
-            version=int(row.get('version', 1))
+            is_required=bool(int(row['is_required'])) if 'is_required' in row and pd.notna(row['is_required']) else True,
+            version=int(row['version']) if 'version' in row and pd.notna(row['version']) else 1,
         )
         db.add(question)
     db.commit()

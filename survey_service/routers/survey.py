@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from fastapi.security import HTTPBearer
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Body
 from sqlalchemy.orm import Session
 from schemas import survey as schemas
 from crud import crud
@@ -10,8 +9,9 @@ import os
 from core.validation import validate_answer
 from core.security import get_current_user, require_admin
 
+# Gợi ý rõ ràng cho Swagger: không yêu cầu auth ở DEV mode
+
 router = APIRouter(prefix="/survey", tags=["survey"])
-security = HTTPBearer()
 
 # Dependency lấy session cho questions_db
 def get_db():
@@ -22,13 +22,52 @@ def get_db():
         db.close()
 
 # Lấy danh sách câu hỏi cho user
-@router.get("/questions", response_model=List[schemas.SurveyQuestionOut])
+@router.get(
+    
+    "/questions",
+    response_model=List[schemas.SurveyQuestionOut],
+    summary="List all survey questions",
+    description="Trả về toàn bộ câu hỏi theo thứ tự `order`. Dùng để render form khảo sát ở client.",
+)
 def get_questions(db: Session = Depends(get_db)):
+    """Lấy danh sách câu hỏi khảo sát (đủ trường và metadata)."""
     return crud.get_all_questions(db)
 
 # User gửi câu trả lời (nhiều câu hỏi cùng lúc)
-@router.post("/submit", dependencies=[Depends(security)])
-def submit_answers(payload: schemas.SurveySubmitRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
+@router.post(
+    "/submit",
+    status_code=status.HTTP_200_OK,
+    summary="Submit all answers at once",
+    description=(
+        "User gửi toàn bộ câu trả lời. Hệ thống sẽ validate theo loại câu hỏi.\n"
+        "Cơ chế chống spam: nếu đã trả lời đủ số câu hỏi, lần gửi sau sẽ bị từ chối (409)."
+    ),
+    responses={
+        200: {"description": "Answers submitted successfully"},
+        400: {"description": "Validation failed"},
+        409: {"description": "User đã trả lời đủ, không thể gửi lại"},
+    },
+)
+def submit_answers(
+    payload: schemas.SurveySubmitRequest = Body(
+        ...,
+        examples={
+            "simple": {
+                "summary": "Ví dụ submit",
+                "value": {
+                    "user_id": "user_123",
+                    "answers": [
+                        {"question_id": 1, "answer": "Nam"},
+                        {"question_id": 2, "answer": ["Thẻ tín dụng", "Vay tiêu dùng"]},
+                        {"question_id": 3, "answer": 27},
+                    ],
+                },
+            }
+        },
+    ),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
     # Chỉ cho user đã đăng nhập gửi câu trả lời (user lấy từ JWT)
     # Có thể so khớp user_id trong token và payload nếu muốn tăng bảo mật
     errors = []
@@ -51,14 +90,33 @@ def submit_answers(payload: schemas.SurveySubmitRequest, db: Session = Depends(g
     return {"message": "Answers submitted successfully"}
 
 # Lấy câu trả lời của user
-@router.get("/answers/{user_id}", response_model=List[schemas.SurveyAnswerOut], dependencies=[Depends(security)])
+@router.get(
+    "/answers/{user_id}",
+    response_model=List[schemas.SurveyAnswerOut],
+    summary="Get user's answers",
+    description="Trả về toàn bộ câu trả lời của một user (phục vụ resume hoặc hiển thị lại).",
+)
 def get_answers(user_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Chỉ cho user đã đăng nhập xem câu trả lời (có thể kiểm tra user_id == user["user_id"] nếu muốn)
     return crud.get_user_answers(db, user_id)
 
 # Admin import câu hỏi từ file CSV
-@router.post("/admin/import-questions", dependencies=[Depends(security)])
-def import_questions(file: UploadFile = File(...), db: Session = Depends(get_db), admin=Depends(require_admin)):
+@router.post(
+    "/admin/import-questions",
+    status_code=status.HTTP_200_OK,
+    summary="Admin import survey questions from CSV/Excel",
+    description=(
+        "File chấp nhận: .csv/.xlsx.\n\n"
+        "Cột bắt buộc: question_text, question_type, question_group, order.\n"
+        "Cột tuỳ chọn: options, is_required, version.\n"
+        "CSV: hệ thống tự dò delimiter và encoding."
+    ),
+)
+def import_questions(
+    file: UploadFile = File(..., description="CSV hoặc Excel (.xlsx) chứa danh sách câu hỏi"),
+    db: Session = Depends(get_db),
+    admin=Depends(require_admin),
+):
     # Chỉ cho admin import câu hỏi
     temp_path = f"temp_{file.filename}"
     with open(temp_path, "wb") as buffer:
@@ -69,13 +127,26 @@ def import_questions(file: UploadFile = File(...), db: Session = Depends(get_db)
         os.remove(temp_path)
     return {"message": "Questions imported successfully"}
 
-@router.get("/admin/statistics", dependencies=[Depends(security)])
+@router.get(
+    "/admin/statistics",
+    summary="Admin - overall survey statistics",
+    description="Số lượng user đã có ít nhất một câu trả lời (distinct theo user_id).",
+)
 def survey_statistics(db: Session = Depends(get_db), admin=Depends(require_admin)):
     # Tổng số user đã trả lời survey (dựa vào user_id duy nhất trong survey_answers)
     user_count = db.query(crud.models.SurveyAnswer.user_id).distinct().count()
     return {"total_users_submitted": user_count}
 
-@router.get("/admin/question-stats/{question_id}", dependencies=[Depends(security)])
+@router.get(
+    "/admin/question-stats/{question_id}",
+    summary="Admin - statistics for a specific question",
+    description=(
+        "Thống kê tuỳ theo loại câu hỏi: \n"
+        "- single_choice/multiple_choice: tần suất các đáp án\n"
+        "- number: trung bình và số lượng\n"
+        "- text: tổng số câu trả lời"
+    ),
+)
 def question_statistics(question_id: int, db: Session = Depends(get_db), admin=Depends(require_admin)):
     # Thống kê đáp án cho 1 câu hỏi
     question = db.query(crud.models.SurveyQuestion).filter_by(id=question_id).first()
@@ -109,8 +180,26 @@ def question_statistics(question_id: int, db: Session = Depends(get_db), admin=D
         stats = {"count": len(answers)}
     return {"question_id": question_id, "question_text": question.question_text, "stats": stats}
 
-@router.patch("/answer", dependencies=[Depends(security)])
-def save_single_answer(payload: schemas.SurveyAnswerBase, db: Session = Depends(get_db), user=Depends(get_current_user)):
+@router.patch(
+    "/answer",
+    summary="Save or update a single answer (resume)",
+    description=(
+        "Lưu một câu trả lời đơn lẻ, phục vụ resume. Nếu đã tồn tại sẽ cập nhật, không áp dụng chặn spam theo tổng số."
+    ),
+)
+def save_single_answer(
+    payload: schemas.SurveyAnswerBase = Body(
+        ...,
+        examples={
+            "single": {
+                "summary": "Ví dụ lưu một câu",
+                "value": {"user_id": "user_123", "question_id": 2, "answer": ["Thẻ tín dụng"]},
+            }
+        },
+    ),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
     # Validate câu hỏi tồn tại
     question = db.query(crud.models.SurveyQuestion).filter_by(id=payload.question_id).first()
     if not question:
@@ -124,7 +213,11 @@ def save_single_answer(payload: schemas.SurveyAnswerBase, db: Session = Depends(
         raise HTTPException(status_code=409, detail="Không thể lưu câu trả lời.")
     return {"message": "Answer saved successfully"}
 
-@router.get("/progress/{user_id}", dependencies=[Depends(security)])
+@router.get(
+    "/progress/{user_id}",
+    summary="Get survey progress for a user",
+    description="Trả về danh sách câu đã trả lời, còn thiếu và tổng số câu hỏi để client hiển thị tiến độ.",
+)
 def get_survey_progress(user_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Lấy tất cả câu hỏi
     questions = db.query(crud.models.SurveyQuestion).all()
