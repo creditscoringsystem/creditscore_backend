@@ -20,7 +20,7 @@ class SurveyQuestionOut(SurveyQuestionBase):
     updated_at: datetime.datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SurveyAnswerBase(BaseModel):
     user_id: str
@@ -35,7 +35,7 @@ class SurveyAnswerOut(SurveyAnswerBase):
     submitted_at: datetime.datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Schema cho request gửi nhiều câu trả lời một lúc
 class SurveySubmitRequest(BaseModel):

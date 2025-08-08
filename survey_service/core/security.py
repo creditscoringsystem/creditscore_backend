@@ -3,11 +3,11 @@ import os
 
 # Hàm lấy user từ Kong headers (Kong đã xử lý authentication)
 def get_current_user(request: Request):
-    user_id = request.headers.get("X-Consumer-Username")
+    user_id = request.headers.get("X-Consumer-Username") or request.headers.get("X-User-Id")
     if not user_id:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Authentication required - Kong should provide user info"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required - Kong should provide user info",
         )
     # Nếu user_id là admin_user thì role là admin
     role = "admin" if user_id == "admin_user" else "user"

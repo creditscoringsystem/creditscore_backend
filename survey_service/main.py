@@ -1,9 +1,6 @@
 from fastapi import FastAPI
-from fastapi.security import HTTPBearer
+from fastapi.middleware.cors import CORSMiddleware
 from routers import survey
-
-# Thêm security scheme cho JWT Bearer token
-security = HTTPBearer()
 
 app = FastAPI(
     title="Survey Service API",
@@ -15,6 +12,15 @@ app = FastAPI(
             "description": "Survey operations"
         }
     ]
+)
+
+# CORS (tuỳ chỉnh theo môi trường)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Đăng ký router cho survey_service
