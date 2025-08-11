@@ -6,3 +6,4 @@ passlib[bcrypt]
 jose
 pydantic 
 httpx
+psycopg2-binary
