@@ -2,6 +2,8 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+from models.base import Base
+from models.survey import Survey
 
 # Load biến môi trường từ file .env
 load_dotenv()
@@ -11,3 +13,13 @@ SURVEY_DATABASE_URL = os.getenv("SURVEY_DATABASE_URL", "postgresql://kong:kong@l
 
 engine = create_engine(SURVEY_DATABASE_URL, pool_pre_ping=True, future=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, future=True)
+
+# Auto create tables
+Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
