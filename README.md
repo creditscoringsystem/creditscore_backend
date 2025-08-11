@@ -37,6 +37,11 @@ A microservices backend system for Credit Score applications, built with FastAPI
                     │   Alert Service       │
                     │   (Port 8004)        │
                     └───────────────────────┘
+                                │
+                    ┌───────────▼───────────┐
+                    │   Score Service       │
+                    │   (Port 8007)        │
+                    └───────────────────────┘
 ```
 
 ## 🚀 Services
@@ -49,6 +54,7 @@ A microservices backend system for Credit Score applications, built with FastAPI
   - `/users/*` - Current user information management
   - `/admin/*` - All users management (admin only)
 - **Authentication**: JWT Bearer Token
+- **Database**: Auto-creates tables on startup
 
 ### 2. **Profile Service** (`profile_service/`)
 - **Port**: 8003
@@ -57,6 +63,7 @@ A microservices backend system for Credit Score applications, built with FastAPI
   - `/profile/*` - Personal information management
   - `/preferences/*` - Theme and language preferences
 - **Authentication**: `X-User-Id` Header
+- **Database**: Auto-creates tables on startup
 
 ### 3. **Alert Service** (`alert_service/`)
 - **Port**: 8004
@@ -65,6 +72,7 @@ A microservices backend system for Credit Score applications, built with FastAPI
   - `/alerts/*` - Alerts and notifications management
   - `/score-updates/*` - Credit score update processing
 - **Features**: Milestone logic, alert management
+- **Database**: Auto-creates tables on startup
 
 ### 4. **Survey Service** (`survey_service/`)
 - **Port**: 8005
@@ -72,6 +80,15 @@ A microservices backend system for Credit Score applications, built with FastAPI
 - **API Endpoints**:
   - `/survey/*` - Survey operations
 - **Features**: Question management, answer processing
+- **Database**: Auto-creates tables on startup
+
+### 5. **Score Service** (`score_service/`)
+- **Port**: 8007
+- **Functionality**: Credit score calculation and management
+- **API Endpoints**:
+  - `/scores/*` - Score operations and calculations
+- **Features**: ML integration, score processing
+- **Database**: Auto-creates tables on startup
 
 ## 🛠️ Technologies Used
 
@@ -84,6 +101,7 @@ A microservices backend system for Credit Score applications, built with FastAPI
 ### Database
 - **PostgreSQL 17** - Primary database
 - **SQLAlchemy ORM** - Database abstraction layer
+- **Auto Table Creation** - Tables are automatically created on service startup
 
 ### API Gateway & Management
 - **Kong 3.6** - API Gateway and Load Balancer
@@ -104,6 +122,7 @@ A microservices backend system for Credit Score applications, built with FastAPI
 - **Python**: 3.8+
 - **Docker**: 20.10+
 - **Docker Compose**: 1.29+
+- **PostgreSQL**: 17+ (local installation)
 - **RAM**: Minimum 4GB
 - **Disk**: Minimum 10GB free space
 
@@ -115,20 +134,30 @@ git clone <repository-url>
 cd creditscore_backend
 ```
 
-### 2. Install dependencies
+### 2. Install PostgreSQL locally
 ```bash
-# Install dependencies for each service
-pip install -r requirements.txt
-pip install -r user_service/requirements.txt
-pip install -r profile_service/requirements.txt
-pip install -r survey_service/requirements.txt
-pip install -r alert_service/requirements.txt
+# Windows: Download from https://www.postgresql.org/download/windows/
+# Or use Docker:
+docker run --name postgres-local -e POSTGRES_PASSWORD=180806 -p 5432:5432 -d postgres:17
 ```
 
-### 3. Run with Docker Compose
+### 3. Create databases
+```sql
+-- Connect to PostgreSQL and create databases
+CREATE DATABASE user_db;
+CREATE DATABASE profile_db;
+CREATE DATABASE alert_db;
+CREATE DATABASE survey_db;
+CREATE DATABASE score_db;
+```
+
+### 4. Run with Docker Compose (Recommended)
 ```bash
 # Start the entire system
-docker-compose up -d
+docker-compose up --build
+
+# Run in background
+docker-compose up -d --build
 
 # View logs
 docker-compose logs -f
@@ -137,8 +166,39 @@ docker-compose logs -f
 docker-compose down
 ```
 
-### 4. Run individual services
+### 5. Run individual services
 ```bash
+# User Service
+cd user_service
+docker build -t user-service .
+docker run -p 8002:8002 user-service
+
+# Profile Service
+cd profile_service
+docker build -t profile-service .
+docker run -p 8003:8003 profile-service
+
+# Alert Service
+cd alert_service
+docker build -t alert-service .
+docker run -p 8004:8004 alert-service
+
+# Survey Service
+cd survey_service
+docker build -t survey-service .
+docker run -p 8005:8005 survey-service
+
+# Score Service
+cd score_service
+docker build -t score-service .
+docker run -p 8007:8007 score-service
+```
+
+### 6. Run without Docker (Development)
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
 # User Service
 cd user_service
 uvicorn main:app --host 0.0.0.0 --port 8002 --reload
@@ -154,6 +214,10 @@ uvicorn main:app --host 0.0.0.0 --port 8004 --reload
 # Survey Service
 cd survey_service
 uvicorn main:app --host 0.0.0.0 --port 8005 --reload
+
+# Score Service
+cd score_service
+uvicorn main:app --host 0.0.0.0 --port 8007 --reload
 ```
 
 ## 🌐 Service Access
@@ -167,6 +231,7 @@ uvicorn main:app --host 0.0.0.0 --port 8005 --reload
 | **Profile Service** | http://localhost:8003 | 8003 | Profile Management |
 | **Alert Service** | http://localhost:8004 | 8004 | Alert Management |
 | **Survey Service** | http://localhost:8005 | 8005 | Survey Management |
+| **Score Service** | http://localhost:8007 | 8007 | Score Management |
 
 ## 📚 API Documentation
 
@@ -176,6 +241,7 @@ Each service has Swagger UI documentation:
 - **Profile Service**: http://localhost:8003/docs
 - **Alert Service**: http://localhost:8004/docs
 - **Survey Service**: http://localhost:8005/docs
+- **Score Service**: http://localhost:8007/docs
 
 ## 🔐 Authentication
 
@@ -202,20 +268,32 @@ curl -H "X-User-Id: <user-id>" \
 ### PostgreSQL Connection
 ```bash
 # Direct connection
-psql -h localhost -U kong -d kong -p 5432
+psql -h localhost -U postgres -p 5432
 
 # From Docker container
-docker exec -it kong-database psql -U kong -d kong
+docker exec -it postgres-local psql -U postgres
 ```
 
-### Database URLs
+### Database URLs (Auto-configured in Docker)
 ```bash
-# Kong Database
-postgresql://kong:kong@localhost:5432/kong
+# User Service
+postgresql://postgres:180806@host.docker.internal:5432/user_db
 
-# Alert Service Database
-postgresql://kong:kong@localhost:5432/alert_service
+# Profile Service
+postgresql://postgres:180806@host.docker.internal:5432/profile_db
+
+# Alert Service
+postgresql://postgres:180806@host.docker.internal:5432/alert_db
+
+# Survey Service
+postgresql://postgres:180806@host.docker.internal:5432/survey_db
+
+# Score Service
+postgresql://postgres:180806@host.docker.internal:5432/score_db
 ```
+
+### Auto Table Creation
+All services automatically create their database tables on startup using SQLAlchemy's `Base.metadata.create_all()`. No manual database setup required!
 
 ## 🧪 Testing
 
@@ -234,56 +312,62 @@ cd survey_service/scripts
 
 ```
 creditscore_backend/
-├── docker-compose.yml          # Docker orchestration
+├── docker-compose.yml          # Docker orchestration with environment variables
 ├── requirements.txt            # Root dependencies
 ├── README.md                  # This file
 ├── .gitignore                 # Git ignore patterns
 ├── user_service/              # User management service
 │   ├── main.py               # FastAPI application
-│   ├── models/               # Database models
+│   ├── models/               # Database models (auto-created)
 │   ├── schemas/              # Pydantic schemas
 │   ├── routers/              # API endpoints
 │   ├── crud/                 # Database operations
 │   └── core/                 # Core utilities
 ├── profile_service/           # Profile management service
 │   ├── main.py               # FastAPI application
-│   ├── models/               # Database models
+│   ├── models/               # Database models (auto-created)
 │   ├── schemas/              # Pydantic schemas
 │   ├── routers/              # API endpoints
 │   └── core/                 # Core utilities
 ├── alert_service/             # Alert management service
 │   ├── main.py               # FastAPI application
-│   ├── models/               # Database models
+│   ├── models/               # Database models (auto-created)
 │   ├── schemas/              # Pydantic schemas
 │   ├── routers/              # API endpoints
 │   ├── core/                 # Core utilities
 │   └── scripts/              # Test scripts
-└── survey_service/            # Survey management service
+├── survey_service/            # Survey management service
+│   ├── main.py               # FastAPI application
+│   ├── models/               # Database models (auto-created)
+│   ├── schemas/              # Pydantic schemas
+│   ├── routers/              # API endpoints
+│   └── scripts/              # Test scripts
+└── score_service/             # Score management service
     ├── main.py               # FastAPI application
-    ├── models/               # Database models
+    ├── models/               # Database models (auto-created)
     ├── schemas/              # Pydantic schemas
     ├── routers/              # API endpoints
-    └── scripts/              # Test scripts
+    └── services/             # ML and alert integration
 ```
 
 ## 🔧 Development
 
 ### Environment Variables
-Create `.env` file in each service directory:
+Environment variables are configured directly in `docker-compose.yml`:
 
-```bash
-# Database
-DATABASE_URL=postgresql://kong:kong@localhost:5432/service_name
-
-# Security
-SECRET_KEY=your-secret-key
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# Service Configuration
-SERVICE_PORT=8004
-SERVICE_NAME=alert-service
+```yaml
+environment:
+  USER_DATABASE_URL: postgresql://postgres:180806@host.docker.internal:5432/user_db
+  SECRET_KEY: your-secret-key-here
+  ALGORITHM: HS256
+  ACCESS_TOKEN_EXPIRE_MINUTES: 30
 ```
+
+### Database Configuration
+- **Host**: `host.docker.internal` (for Docker containers to access local PostgreSQL)
+- **User**: `postgres`
+- **Password**: `180806` (change in production)
+- **Port**: `5432`
 
 ### Code Style
 - Use **Black** for code formatting
@@ -294,7 +378,7 @@ SERVICE_NAME=alert-service
 ### Adding New Service
 1. Create new service directory
 2. Copy template from existing service
-3. Update `docker-compose.yml`
+3. Update `docker-compose.yml` with environment variables
 4. Add service to Kong Gateway
 5. Update documentation
 
@@ -315,6 +399,41 @@ docker-compose -f docker-compose.prod.yml up -d
 NODE_ENV=production
 KONG_ENVIRONMENT=production
 DATABASE_URL=postgresql://user:pass@prod-db:5432/dbname
+```
+
+## 🐳 Docker Commands
+
+### Quick Start
+```bash
+# Start all services
+docker-compose up --build
+
+# Start specific service
+docker-compose up user_service
+
+# View logs
+docker-compose logs -f user_service
+
+# Stop all
+docker-compose down
+
+# Rebuild and start
+docker-compose up --build --force-recreate
+```
+
+### Troubleshooting
+```bash
+# Check service status
+docker-compose ps
+
+# Check service logs
+docker-compose logs user_service
+
+# Restart service
+docker-compose restart user_service
+
+# Remove all containers and volumes
+docker-compose down -v
 ```
 
 ## 🤝 Contributing
