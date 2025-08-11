@@ -1,8 +1,9 @@
+import os
 import httpx
 from typing import Dict, Any
 
 
-ML_PREDICT_URL = "http://localhost:8006/predict"
+ML_PREDICT_URL = os.getenv("ML_PREDICT_URL", "http://localhost:8006/predict")
 
 
 async def predict_score(features: Dict[str, Any]) -> Dict[str, Any]:

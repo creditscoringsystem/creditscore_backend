@@ -5,6 +5,7 @@ from schemas.score import FeaturesIn, ScoreOut, HistoryOut, HistoryItem, Simulat
 from database import get_db
 from models.score import CreditScore, ScoreHistory
 from services.ml_client import predict_score
+from services.alert_client import notify_score_updated
 
 
 router = APIRouter(prefix="/scores", tags=["scores"])
@@ -76,6 +77,7 @@ async def calculate_score(
         )
         db.add(current)
     else:
+        old_score_val = current.current_score
         current.current_score = score_val
         current.category = category
         current.confidence = confidence
@@ -92,6 +94,19 @@ async def calculate_score(
     db.add(hist)
     db.commit()
     db.refresh(current)
+
+    # notify alerts (fire-and-forget)
+    try:
+        await notify_score_updated(
+            user_id=user_id,
+            old_score=locals().get("old_score_val"),
+            new_score=current.current_score,
+            category=current.category,
+            model_version=current.model_version,
+            calculated_at=current.last_calculated.isoformat(),
+        )
+    except Exception:
+        pass
 
     return ScoreOut(
         user_id=user_id,
