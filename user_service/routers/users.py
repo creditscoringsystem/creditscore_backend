@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from schemas.user import UserOut, UserCreate, UserUpdatePassword, UserForgotPassword
-from crud.crud import get_user_by_username, create_user, get_users, get_user, delete_user
+from crud.crud import create_user, get_users, get_user, delete_user
 from database import get_db
 from core.security import decode_access_token
 from models.user import User
@@ -33,7 +33,7 @@ def get_me(request: Request, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED, 
             detail="Invalid token"
         )
-    user = get_user_by_username(db, payload.get("sub"))
+    user = db.query(User).filter(User.id == int(payload.get("sub"))).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
@@ -71,22 +71,14 @@ def update_me(
             detail="Invalid token"
         )
     
-    current_user = get_user_by_username(db, payload.get("sub"))
+    current_user = db.query(User).filter(User.id == int(payload.get("sub"))).first()
     if not current_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="User not found"
         )
     
-    # Kiểm tra username mới có tồn tại không
-    if user_update.username != current_user.username:
-        existing_user = get_user_by_username(db, user_update.username)
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already exists"
-            )
-        current_user.username = user_update.username
+    # Demo: không cho phép đổi email qua endpoint này (giữ nguyên)
     
     db.commit()
     db.refresh(current_user)

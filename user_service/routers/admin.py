@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from schemas.user import UserOut, UserCreate
-from crud.crud import get_users, get_user_by_username, get_user, delete_user, create_user
+from crud.crud import get_users, get_user, delete_user, create_user, get_user_by_email
 from database import get_db
 from core.security import decode_access_token
 from models.user import User
@@ -31,7 +31,7 @@ def get_current_admin(request: Request, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN, 
             detail="Not admin"
         )
-    user = get_user_by_username(db, payload.get("sub"))
+    user = db.query(User).filter(User.id == int(payload.get("sub"))).first()
     if not user or not user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
@@ -68,13 +68,13 @@ def create_user_admin(
     - Bearer token với quyền admin
     
     **Lưu ý:**
-    - Username phải duy nhất
+    - Email phải duy nhất
     - Password tối thiểu 6 ký tự
     """
-    if get_user_by_username(db, user.username):
+    if get_user_by_email(db, user.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Username already registered"
+            detail="Email already registered"
         )
     return create_user(db, user)
 
@@ -126,15 +126,7 @@ def update_user_admin(
             detail="User not found"
         )
     
-    # Kiểm tra username mới có tồn tại không
-    if user_update.username != user.username:
-        existing_user = get_user_by_username(db, user_update.username)
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already exists"
-            )
-        user.username = user_update.username
+    # Demo: không cho phép đổi email tại endpoint này (giữ nguyên)
     
     db.commit()
     db.refresh(user)
@@ -166,7 +158,7 @@ def delete_user_admin(
             detail="User not found. Cannot delete."
         )
     delete_user(db, user)
-    return {"detail": f"User '{user.username}' has been deleted successfully."}
+    return {"detail": f"User '{user.email}' has been deleted successfully."}
 
 @router.get("/admin/summary", response_model=dict)
 def admin_summary(
