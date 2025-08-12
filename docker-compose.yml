@@ -1,5 +1,3 @@
-version: '3.7'
-
 services:
   kong-database:
     image: postgres:17
@@ -9,11 +7,16 @@ services:
       POSTGRES_DB: kong
       POSTGRES_PASSWORD: kong
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - kong_db_data:/var/lib/postgresql/data
     networks:
       - kong-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong -d kong -h 127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   kong:
     image: kong:3.6
@@ -21,6 +24,7 @@ services:
     environment:
       KONG_DATABASE: postgres
       KONG_PG_HOST: kong-database
+      KONG_PG_PORT: 5432
       KONG_PG_PASSWORD: kong
       KONG_PG_USER: kong
       KONG_PG_DATABASE: kong
@@ -35,7 +39,8 @@ services:
       - "8444:8444"
       - "8443:8443"
     depends_on:
-      - kong-database
+      kong-database:
+        condition: service_healthy
     networks:
       - kong-net
 
@@ -49,6 +54,71 @@ services:
       - "1337:1337"
     networks:
       - kong-net
+    depends_on:
+      kong:
+        condition: service_healthy
+
+  user_service:
+    build: ./user_service
+    container_name: user_service
+    ports:
+      - "8002:8002"
+    environment:
+      USER_DATABASE_URL: postgresql://postgres:180806@host.docker.internal:5432/user_db
+      SECRET_KEY: your-secret-key-here
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    restart: unless-stopped
+
+  profile_service:
+    build: ./profile_service
+    container_name: profile_service
+    ports:
+      - "8003:8003"
+    environment:
+      PROFILE_DATABASE_URL: postgresql://postgres:180806@host.docker.internal:5432/profile_db
+      SECRET_KEY: "030ab0cf5db85e16341ac7ec47e862244c234a0efb764f8543eaf597dcc05c81"
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    restart: unless-stopped
+
+  alert_service:
+    build: ./alert_service
+    container_name: alert_service
+    ports:
+      - "8004:8004"
+    environment:
+      ALERT_DATABASE_URL: postgresql://postgres:180806@host.docker.internal:5432/alert_db
+      SECRET_KEY: your-secret-key-here
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    restart: unless-stopped
+
+  survey_service:
+    build: ./survey_service
+    container_name: survey_service
+    ports:
+      - "8005:8005"
+    environment:
+      SURVEY_DATABASE_URL: postgresql://postgres:180806@host.docker.internal:5432/survey_db
+      SECRET_KEY: your-secret-key-here
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    restart: unless-stopped
+
+  score_service:
+    build: ./score_service
+    container_name: score_service
+    ports:
+      - "8007:8007"
+    environment:
+      SCORE_DATABASE_URL: postgresql://postgres:180806@host.docker.internal:5432/score_db
+      ML_PREDICT_URL: http://host.docker.internal:8006/predict
+      ALERT_SERVICE_URL: http://host.docker.internal:8004
+      SECRET_KEY: your-secret-key-here
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    restart: unless-stopped
 
 networks:
   kong-net:
