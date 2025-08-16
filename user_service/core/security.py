@@ -8,6 +8,12 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
+
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY is not set. Please configure SECRET_KEY in environment variables (Render/production) or in a local .env for development."
+    )
+
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

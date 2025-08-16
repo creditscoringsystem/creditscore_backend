@@ -109,7 +109,7 @@ def delete_me(request: Request, db: Session = Depends(get_db)):
             detail="Invalid token"
         )
     
-    current_user = get_user_by_username(db, payload.get("sub"))
+    current_user = db.query(User).filter(User.id == int(payload.get("sub"))).first()
     if not current_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
