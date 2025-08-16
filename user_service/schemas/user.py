@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 
 class UserBase(BaseModel):
-    username: str = Field(..., description="Tên đăng nhập duy nhất")
+    email: str = Field(..., description="Email đăng ký", pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     disabled: Optional[bool] = Field(False, description="Trạng thái tài khoản")
     is_admin: Optional[bool] = Field(False, description="Quyền admin")
 
@@ -13,10 +13,7 @@ class UserCreate(UserBase):
 
     class Config:
         json_schema_extra = {
-            "example": {
-                "username": "alice",
-                "password": "yourpassword123"
-            }
+            "example": {"email": "alice@example.com", "password": "yourpassword123"}
         }
 
 class UserOut(UserBase):
@@ -28,7 +25,7 @@ class UserOut(UserBase):
         json_schema_extra = {
             "example": {
                 "id": 1,
-                "username": "alice",
+                "email": "alice@example.com",
                 "disabled": False,
                 "is_admin": False,
                 "created_at": "2024-01-01T00:00:00Z"
@@ -36,15 +33,12 @@ class UserOut(UserBase):
         }
 
 class UserLogin(BaseModel):
-    username: str = Field(..., description="Tên đăng nhập")
+    email: str = Field(..., description="Email")
     password: str = Field(..., description="Mật khẩu")
     
     class Config:
         json_schema_extra = {
-            "example": {
-                "username": "alice",
-                "password": "yourpassword123"
-            }
+            "example": {"email": "alice@example.com", "password": "yourpassword123"}
         }
 
 class UserUpdatePassword(BaseModel):
@@ -60,11 +54,9 @@ class UserUpdatePassword(BaseModel):
         }
 
 class UserForgotPassword(BaseModel):
-    username: str = Field(..., description="Tên đăng nhập")
+    email: str = Field(..., description="Email")
     
     class Config:
         json_schema_extra = {
-            "example": {
-                "username": "alice"
-            }
+            "example": {"email": "alice@example.com"}
         }

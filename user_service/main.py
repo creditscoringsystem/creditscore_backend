@@ -67,9 +67,17 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-app.include_router(auth.router, tags=["auth"])
-app.include_router(users.router, tags=["users"])
-app.include_router(admin.router, tags=["admin"])
+app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
+app.include_router(users.router, prefix="/api/v1", tags=["users"])
+app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+
+@app.get("/")
+async def root():
+    """
+    Root endpoint used mainly for gateway health checks.
+    Returns 200 OK.
+    """
+    return {"msg": "ok", "service": "user-service"}
 
 @app.get("/ping")
 async def ping():
@@ -79,4 +87,9 @@ async def ping():
     **Trả về:**
     - Status message để kiểm tra service hoạt động
     """
+    return {"msg": "pong", "service": "user-service"}
+
+@app.get("/api/v1/user-ping")
+async def user_ping():
+    """Kong health check path for user-service under /api/v1."""
     return {"msg": "pong", "service": "user-service"}

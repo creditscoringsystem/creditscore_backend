@@ -30,6 +30,10 @@ app = FastAPI(
     },
 )
 
+@app.get("/")
+def root():
+    return {"status": "healthy", "service": "profile_service"}
+
 @app.get(
     "/health",
     summary="Health Check",
@@ -88,7 +92,11 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-app.include_router(profile.router)
-app.include_router(preferences.router)
+app.include_router(profile.router, prefix="/api/v1")
+app.include_router(preferences.router, prefix="/api/v1")
 
 Base.metadata.create_all(bind=engine)
+
+@app.get("/api/v1/profile-health")
+def profile_health():
+    return {"status": "healthy", "service": "profile_service"}

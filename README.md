@@ -90,6 +90,13 @@ A microservices backend system for Credit Score applications, built with FastAPI
 - **Features**: ML integration, score processing
 - **Database**: Auto-creates tables on startup
 
+### 5. **Score Service** (`score_service/`)
+- **Port**: 8007
+- **Functionality**: Credit score calculation and management
+- **API Endpoints**:
+  - `/scores/*` - Score operations
+- **Features**: Score calculation, history tracking, simulation
+
 ## 🛠️ Technologies Used
 
 ### Backend Framework

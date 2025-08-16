@@ -7,7 +7,8 @@ class User(Base):
     __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True)
-    username = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, unique=True, nullable=True)
     hashed_password = Column(String, nullable=False)
     disabled = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
@@ -15,4 +16,4 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        return f"<User(username='{self.username}', id={self.id})>"
+        return f"<User(email='{self.email}', id={self.id})>"

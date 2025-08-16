@@ -1,0 +1,259 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  # User Service
+  - name: user-service
+    url: http://user-service:8002
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    retries: 2
+    routes:
+      - name: user-auth
+        paths:
+          - /api/v1/auth
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+      
+      - name: user-users
+        paths:
+          - /api/v1/users
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        plugins:
+          - name: jwt
+            config:
+              run_on_preflight: false
+      
+      - name: user-admin
+        paths:
+          - /api/v1/admin
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        plugins:
+          - name: jwt
+            config:
+              run_on_preflight: false
+      
+      - name: user-ping
+        paths:
+          - /api/v1/user-ping
+        strip_path: false
+        methods:
+          - GET
+
+  # Profile Service
+  - name: profile-service
+    url: http://profile-service:8003
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    retries: 2
+    routes:
+      - name: profile-profile
+        paths:
+          - /api/v1/profile
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        plugins:
+          - name: jwt
+            config:
+              run_on_preflight: false
+      
+      - name: profile-preferences
+        paths:
+          - /api/v1/preferences
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        plugins:
+          - name: jwt
+            config:
+              run_on_preflight: false
+      
+      - name: profile-health
+        paths:
+          - /api/v1/profile-health
+        strip_path: false
+        methods:
+          - GET
+
+  # Alert Service
+  - name: alert-service
+    url: http://alert-service:8004
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    retries: 2
+    routes:
+      - name: alert-alerts
+        paths:
+          - /api/v1/alerts
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        plugins:
+          - name: jwt
+            config:
+              run_on_preflight: false
+      
+      - name: alert-health
+        paths:
+          - /api/v1/alert-health
+        strip_path: false
+        methods:
+          - GET
+
+  # Survey Service
+  - name: survey-service
+    url: http://survey-service:8005
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    retries: 2
+    routes:
+      - name: survey-survey
+        paths:
+          - /api/v1/survey
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        plugins:
+          - name: jwt
+            config:
+              run_on_preflight: false
+      
+      - name: survey-health
+        paths:
+          - /api/v1/survey-health
+        strip_path: false
+        methods:
+          - GET
+
+  # Score Service
+  - name: score-service
+    url: http://score-service:8007
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    retries: 2
+    routes:
+      - name: score-scores
+        paths:
+          - /api/v1/scores
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        plugins:
+          - name: jwt
+            config:
+              run_on_preflight: false
+      
+      - name: score-health
+        paths:
+          - /api/v1/score-health
+        strip_path: false
+        methods:
+          - GET
+
+plugins:
+  # Global CORS Plugin
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - HEAD
+        - PUT
+        - PATCH
+        - POST
+        - DELETE
+        - OPTIONS
+        - TRACE
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - X-Auth-Token
+        - Authorization
+        - X-User-Id
+      exposed_headers:
+        - X-Auth-Token
+      credentials: true
+      max_age: 3600
+
+  # Global Rate Limiting
+  - name: rate-limiting
+    config:
+      minute: 100
+      hour: 1000
+      policy: local
+
+  # Security Headers
+  - name: response-transformer
+    config:
+      add:
+        headers:
+          - "X-Content-Type-Options:nosniff"
+          - "X-Frame-Options:DENY"
+          - "X-XSS-Protection:1; mode=block"
+
+  # Request Logging
+  - name: file-log
+    config:
+      path: /tmp/kong-access.log
+
+  # Global Request Size Limiting (5MB)
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 5
+      require_content_length: false
+
+consumers:
+  # JWT Consumer for Credit Score App
+  - username: creditscore-app
+    jwt_secrets:
+      - key: creditscore-backend
+        algorithm: HS256
+        secret: 030ab0cf5db85e16341ac7ec47e862244c234a0efb764f8543eaf597dcc05c81

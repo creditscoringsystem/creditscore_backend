@@ -1,29 +1,12 @@
-version: '3.7'
 
 services:
-  kong-database:
-    image: postgres:17
-    container_name: kong-database
-    environment:
-      POSTGRES_USER: kong
-      POSTGRES_DB: kong
-      POSTGRES_PASSWORD: kong
-    ports:
-      - "5432:5432"
-    volumes:
-      - kong_db_data:/var/lib/postgresql/data
-    networks:
-      - kong-net
-
+  # Kong API Gateway (DB-less mode)
   kong:
     image: kong:3.6
     container_name: kong
     environment:
-      KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-database
-      KONG_PG_PASSWORD: kong
-      KONG_PG_USER: kong
-      KONG_PG_DATABASE: kong
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong-config.yml
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
@@ -34,19 +17,89 @@ services:
       - "8001:8001"
       - "8444:8444"
       - "8443:8443"
-    depends_on:
-      - kong-database
+    volumes:
+      - ./kong-config.yml:/kong/declarative/kong-config.yml:ro
     networks:
       - kong-net
 
-  konga:
-    image: pantsel/konga
-    container_name: konga
+  # PostgreSQL Database
+  postgres-db:
+    image: postgres:17
+    container_name: postgres-db
     environment:
-      NODE_ENV: production
-      TOKEN_SECRET: supersecret
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
     ports:
-      - "1337:1337"
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - kong-net
+
+  # User Service
+  user-service:
+    build: ./user_service
+    container_name: user-service
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-db:5432/user_service_db
+    depends_on:
+      - postgres-db
+    networks:
+      - kong-net
+
+  # Profile Service
+  profile-service:
+    build: ./profile_service
+    container_name: profile-service
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-db:5432/profile_service_db
+    depends_on:
+      - postgres-db
+    networks:
+      - kong-net
+
+  # Alert Service
+  alert-service:
+    build: ./alert_service
+    container_name: alert-service
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-db:5432/alert_service_db
+    depends_on:
+      - postgres-db
+    networks:
+      - kong-net
+
+  # Survey Service
+  survey-service:
+    build: ./survey_service
+    container_name: survey-service
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-db:5432/survey_service_db
+    depends_on:
+      - postgres-db
+    networks:
+      - kong-net
+
+  # Score Service
+  score-service:
+    build: ./score_service
+    container_name: score-service
+    ports:
+      - "8007:8007"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-db:5432/score_service_db
+    depends_on:
+      - postgres-db
     networks:
       - kong-net
 
@@ -55,4 +108,4 @@ networks:
     driver: bridge
 
 volumes:
-  kong_db_data:
+  postgres_data:

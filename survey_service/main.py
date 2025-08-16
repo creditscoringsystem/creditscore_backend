@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from routers import survey
 
 app = FastAPI(
@@ -14,17 +13,20 @@ app = FastAPI(
     ]
 )
 
-# CORS (tuỳ chỉnh theo môi trường)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Đăng ký router cho survey_service
-app.include_router(survey.router)
+app.include_router(survey.router, prefix="/api/v1")
+
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "survey_service"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "survey_service"}
+
+@app.get("/api/v1/survey-health")
+def survey_health():
+    return {"status": "ok", "service": "survey_service"}
 
 # Hướng dẫn chạy thử:
 # 1. Chạy: uvicorn survey_service.main:app --reload

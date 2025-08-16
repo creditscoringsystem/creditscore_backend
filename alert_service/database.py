@@ -3,14 +3,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 from models.base import Base
-from models.profile import Profile
-from models.consent import Consent
-from models.device import Device
+from models.alert import Alert
 
 load_dotenv()
 
-PROFILE_DATABASE_URL = os.getenv("PROFILE_DATABASE_URL")
-engine = create_engine(PROFILE_DATABASE_URL)
+ALERT_DATABASE_URL = os.getenv("ALERT_DATABASE_URL") or os.getenv("SCORE_DATABASE_URL") or os.getenv("DATABASE_URL")
+if not ALERT_DATABASE_URL:
+    raise RuntimeError("ALERT_DATABASE_URL is not set")
+
+engine = create_engine(ALERT_DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Auto create tables
@@ -21,4 +22,6 @@ def get_db():
     try:
         yield db
     finally:
-        db.close() 
+        db.close()
+
+
