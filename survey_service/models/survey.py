@@ -1,8 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, Boolean, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import relationship
 import datetime
-
-Base = declarative_base()
+from .base import Base
 
 class SurveyQuestion(Base):
     __tablename__ = "survey_questions"
