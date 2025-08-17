@@ -4,7 +4,7 @@ _transform: true
 services:
   # User Service
   - name: user-service
-    url: http://user-service:8002
+    url: https://user-service-krac.onrender.com
     connect_timeout: 5000
     read_timeout: 30000
     write_timeout: 30000
@@ -60,7 +60,7 @@ services:
 
   # Profile Service
   - name: profile-service
-    url: http://profile-service:8003
+    url: https://profile-service-l6e7.onrender.com
     connect_timeout: 5000
     read_timeout: 30000
     write_timeout: 30000
@@ -105,7 +105,7 @@ services:
 
   # Alert Service
   - name: alert-service
-    url: http://alert-service:8004
+    url: https://alert-service-3ubj.onrender.com
     connect_timeout: 5000
     read_timeout: 30000
     write_timeout: 30000
@@ -135,7 +135,7 @@ services:
 
   # Survey Service
   - name: survey-service
-    url: http://survey-service:8005
+    url: https://survey-service-40mi.onrender.com
     connect_timeout: 5000
     read_timeout: 30000
     write_timeout: 30000
@@ -165,7 +165,7 @@ services:
 
   # Score Service
   - name: score-service
-    url: http://score-service:8007
+    url: https://score-service.onrender.com
     connect_timeout: 5000
     read_timeout: 30000
     write_timeout: 30000
@@ -207,28 +207,14 @@ plugins:
         - POST
         - DELETE
         - OPTIONS
-        - TRACE
       headers:
         - Accept
-        - Accept-Version
-        - Content-Length
-        - Content-MD5
         - Content-Type
-        - Date
-        - X-Auth-Token
         - Authorization
-        - X-User-Id
       exposed_headers:
         - X-Auth-Token
       credentials: true
       max_age: 3600
-
-  # Global Rate Limiting
-  - name: rate-limiting
-    config:
-      minute: 100
-      hour: 1000
-      policy: local
 
   # Security Headers
   - name: response-transformer
@@ -238,11 +224,6 @@ plugins:
           - "X-Content-Type-Options:nosniff"
           - "X-Frame-Options:DENY"
           - "X-XSS-Protection:1; mode=block"
-
-  # Request Logging
-  - name: file-log
-    config:
-      path: /tmp/kong-access.log
 
   # Global Request Size Limiting (5MB)
   - name: request-size-limiting

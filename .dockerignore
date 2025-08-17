@@ -31,6 +31,12 @@ env/
 venv/
 .venv/
 .env
+**/.env
+alert_service/.env
+survey_service/.env
+user_service/.env
+profile_service/.env
+score_service/.env
 
 # OS
 .DS_Store

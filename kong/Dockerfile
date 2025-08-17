@@ -9,7 +9,10 @@ ENV KONG_DATABASE=off \
     KONG_ADMIN_ACCESS_LOG=/dev/stdout \
     KONG_PROXY_ERROR_LOG=/dev/stderr \
     KONG_ADMIN_ERROR_LOG=/dev/stderr \
-    KONG_ADMIN_LISTEN="0.0.0.0:8001, 0.0.0.0:8444 ssl"
+    KONG_ADMIN_LISTEN="127.0.0.1:8001, 127.0.0.1:8444 ssl" \
+    KONG_PROXY_LISTEN="0.0.0.0:8000" \
+    KONG_NGINX_WORKER_PROCESSES=1 \
+    KONG_MEM_CACHE_SIZE=64m
 
 # Expose proxy/admin ports (Render will map the ones you enable)
 EXPOSE 8000 8001 8443 8444

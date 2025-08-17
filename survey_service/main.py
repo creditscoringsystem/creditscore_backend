@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from routers import survey
+from database import init_db
 
 app = FastAPI(
     title="Survey Service API",
@@ -15,6 +16,10 @@ app = FastAPI(
 
 # Đăng ký router cho survey_service
 app.include_router(survey.router, prefix="/api/v1")
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 @app.get("/")
 def root():

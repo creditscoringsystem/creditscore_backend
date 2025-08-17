@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from routers.scores import router as scores_router
-
+from database import init_db
 
 app = FastAPI(
     title="Score Service API",
@@ -17,10 +17,13 @@ app = FastAPI(
 
 app.include_router(scores_router, prefix="/api/v1")
 
-
 @app.get("/")
 def root() -> dict:
     return {"status": "ok", "service": "score_service"}
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 @app.get("/api/v1/score-health")
 def score_health() -> dict:

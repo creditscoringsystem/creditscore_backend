@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from routers import users, admin, auth
 from fastapi.openapi.utils import get_openapi
+from database import init_db
 
 app = FastAPI(
     title="User Service API",
@@ -70,6 +71,11 @@ app.openapi = custom_openapi
 app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
 app.include_router(users.router, prefix="/api/v1", tags=["users"])
 app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+
+# Ensure DB tables exist on startup with retries (cloud-friendly)
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 @app.get("/")
 async def root():

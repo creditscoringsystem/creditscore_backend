@@ -6,14 +6,22 @@ from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 from models.base import Base
 # Ensure models are imported so SQLAlchemy registers tables
 import models.survey  # noqa: F401
+import time
+from sqlalchemy import exc as sa_exc
 
-# Load biến môi trường từ file .env
-load_dotenv()
+def _is_render_env() -> bool:
+    return any(
+        os.getenv(k) for k in ["RENDER", "RENDER_SERVICE_ID", "RENDER_EXTERNAL_URL"]
+    )
+
+# Load .env only locally
+if not _is_render_env():
+    load_dotenv()
 
 def _get_database_url() -> str:
     url = (
-        os.getenv("SURVEY_DATABASE_URL")
-        or os.getenv("DATABASE_URL")
+        os.getenv("DATABASE_URL")
+        or os.getenv("SURVEY_DATABASE_URL")
         or os.getenv("POSTGRES_URL")
         or os.getenv("RENDER_DATABASE_URL")
     )
@@ -21,9 +29,7 @@ def _get_database_url() -> str:
         raise RuntimeError(
             "Database URL not configured. Set SURVEY_DATABASE_URL or DATABASE_URL in environment."
         )
-    is_render = any(
-        os.getenv(k) for k in ["RENDER", "RENDER_SERVICE_ID", "RENDER_EXTERNAL_URL"]
-    )
+    is_render = _is_render_env()
     try:
         parsed = urlparse(url)
     except Exception:
@@ -40,8 +46,21 @@ DATABASE_URL = _get_database_url()
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, future=True)
 
-# Auto create tables
-Base.metadata.create_all(bind=engine)
+def init_db() -> None:
+    max_retries = int(os.getenv("DB_MAX_RETRIES", "10"))
+    retry_interval = int(os.getenv("DB_RETRY_INTERVAL", "3"))
+
+    attempt = 0
+    while True:
+        try:
+            with engine.begin() as conn:
+                Base.metadata.create_all(bind=conn)
+            break
+        except (sa_exc.OperationalError, sa_exc.InterfaceError):
+            attempt += 1
+            if attempt > max_retries:
+                raise
+            time.sleep(retry_interval)
 
 def get_db():
     db = SessionLocal()

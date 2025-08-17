@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from routers.alerts import router as alerts_router
+from database import init_db
 
 
 app = FastAPI(
@@ -14,6 +15,11 @@ app = FastAPI(
 )
 
 app.include_router(alerts_router, prefix="/api/v1")
+
+@app.on_event("startup")
+def on_startup():
+    # Khởi tạo DB với cơ chế retry
+    init_db()
 
 
 @app.get("/")

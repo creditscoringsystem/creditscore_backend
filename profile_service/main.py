@@ -3,7 +3,7 @@ import os
 from fastapi.openapi.utils import get_openapi
 from routers import profile, preferences
 from models.base import Base
-from database import engine
+from database import engine, init_db
 
 app = FastAPI(
     title="Profile Service API",
@@ -95,7 +95,10 @@ app.openapi = custom_openapi
 app.include_router(profile.router, prefix="/api/v1")
 app.include_router(preferences.router, prefix="/api/v1")
 
-Base.metadata.create_all(bind=engine)
+# Initialize DB with retries on startup (cloud-friendly)
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 @app.get("/api/v1/profile-health")
 def profile_health():

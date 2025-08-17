@@ -25,6 +25,10 @@ class ScoreUpdatedIn(BaseModel):
     model_version: str | None = None
     calculated_at: datetime | None = None
 
+    class Config:
+        # Cho phép dùng tên trường bắt đầu bằng "model_" mà không cảnh báo
+        protected_namespaces = ()
+
 
 class MarkReadOut(BaseModel):
     success: bool
