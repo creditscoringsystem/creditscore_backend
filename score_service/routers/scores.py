@@ -1,11 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import List
-from schemas.score import FeaturesIn, ScoreOut, HistoryOut, HistoryItem, SimulationOut
+from schemas.score import (
+    SurveyAnswersIn,
+    ScoreOut,
+    HistoryOut,
+    HistoryItem,
+    SimulationOut,
+)
 from database import get_db
 from models.score import CreditScore, ScoreHistory
-from services.ml_client import predict_score
 from services.alert_client import notify_score_updated
+from services.rule_scoring import compute_rule_based_score
 
 
 router = APIRouter(prefix="/scores", tags=["scores"])
@@ -25,45 +31,50 @@ def to_category(score: int) -> str:
     response_model=ScoreOut,
     summary="Calculate and persist user's credit score",
     description=(
-        "Gọi ML service để tính điểm từ features và LƯU vào DB: \n"
+        "Tính điểm theo RULES từ câu trả lời Survey và LƯU vào DB: \n"
         "- Cập nhật điểm hiện tại (upsert vào bảng `credit_scores`)\n"
         "- Ghi thêm một bản ghi vào `score_history` để phục vụ vẽ trend\n\n"
         "Dùng sau khi user hoàn thành Survey hoặc khi bấm 'Áp dụng thay đổi' ở What-If."
     ),
     responses={
         200: {"description": "Tính và lưu điểm thành công"},
-        502: {"description": "Không gọi được ML service"},
     },
 )
 async def calculate_score(
     user_id: str,
-    payload: FeaturesIn = Body(
+    payload: SurveyAnswersIn = Body(
         ...,
         examples={
-            "demo": {
-                "summary": "Ví dụ features tối giản",
+            "survey_demo": {
+                "summary": "Ví dụ câu trả lời survey",
                 "value": {
-                    "age": 28,
-                    "monthly_income": 15000000,
-                    "credit_usage_percent": 42.5,
-                    "late_payments_12m": 1,
-                    "credit_cards_count": 2,
+                    "age": "25-34",
+                    "income": "10-20m",
+                    "job_type": "employee",
+                    "credit_cards": "2-3",
+                    "credit_usage": "31-50%",
+                    "pay_full_on_time": "yes",
+                    "card_blocked": "no",
+                    "late_12m": "1-2",
+                    "pay_timing": "on_time",
+                    "late_fee": "no",
+                    "market_behavior": "invest_more",
+                    "willing_to_borrow": "maybe",
+                    "urgent_money": "bank",
+                    "large_money_use": "invest",
                 },
             }
         },
     ),
     db: Session = Depends(get_db),
 ):
-    """Upsert điểm hiện tại và thêm lịch sử tính điểm cho `user_id`."""
-    try:
-        ml_resp = await predict_score(payload.model_dump())
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"ML service error: {e}")
+    """Upsert điểm hiện tại và thêm lịch sử tính điểm cho `user_id` theo RULES."""
+    result = compute_rule_based_score(payload.model_dump())
 
-    score_val = int(ml_resp.get("score", 0))
-    category = ml_resp.get("category") or to_category(score_val)
-    confidence = ml_resp.get("confidence")
-    model_version = ml_resp.get("model_version")
+    score_val = int(result.get("score", 0))
+    category = result.get("category") or to_category(score_val)
+    confidence = result.get("confidence")
+    model_version = result.get("model_version")
 
     # upsert current
     current = db.query(CreditScore).filter(CreditScore.user_id == user_id).first()
@@ -181,42 +192,47 @@ def get_history(user_id: str, db: Session = Depends(get_db)):
     response_model=SimulationOut,
     summary="Simulate (What-If) without saving",
     description=(
-        "Gọi ML service với features để tính thử điểm dự kiến, KHÔNG lưu DB.\n"
+        "Tính thử điểm dự kiến bằng RULES từ Survey, KHÔNG lưu DB.\n"
         "Dùng khi kéo slider What-If trên FE."
     ),
     responses={
         200: {"description": "Mô phỏng thành công (không lưu)"},
-        502: {"description": "Không gọi được ML service"},
     },
 )
 async def simulate(
     user_id: str,
-    payload: FeaturesIn = Body(
+    payload: SurveyAnswersIn = Body(
         ...,
         examples={
-            "what_if": {
-                "summary": "Ví dụ mô phỏng với credit usage thấp hơn",
+            "what_if_rules": {
+                "summary": "Ví dụ mô phỏng bằng RULES",
                 "value": {
-                    "age": 28,
-                    "monthly_income": 15000000,
-                    "credit_usage_percent": 25.0,
-                    "late_payments_12m": 0,
-                    "credit_cards_count": 2,
+                    "age": "25-34",
+                    "income": "10-20m",
+                    "job_type": "employee",
+                    "credit_cards": "2-3",
+                    "credit_usage": "11-30%",
+                    "pay_full_on_time": "yes",
+                    "card_blocked": "no",
+                    "late_12m": "0",
+                    "pay_timing": "on_time",
+                    "late_fee": "no",
+                    "market_behavior": "hold",
+                    "willing_to_borrow": "maybe",
+                    "urgent_money": "bank",
+                    "large_money_use": "save",
                 },
             }
         },
     ),
 ):
-    """Mô phỏng điểm tín dụng cho `user_id` mà không ghi lịch sử/điểm hiện tại."""
-    try:
-        ml_resp = await predict_score(payload.model_dump())
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"ML service error: {e}")
+    """Mô phỏng điểm tín dụng theo RULES (không lưu DB)."""
+    result = compute_rule_based_score(payload.model_dump())
 
-    score_val = int(ml_resp.get("score", 0))
-    category = ml_resp.get("category") or to_category(score_val)
-    confidence = ml_resp.get("confidence")
-    model_version = ml_resp.get("model_version")
+    score_val = int(result.get("score", 0))
+    category = result.get("category") or to_category(score_val)
+    confidence = result.get("confidence")
+    model_version = result.get("model_version")
     return SimulationOut(
         score=score_val,
         category=category,
