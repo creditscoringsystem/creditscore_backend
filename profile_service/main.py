@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import textwrap
 import os
 from fastapi.openapi.utils import get_openapi
 from routers import profile, preferences
@@ -7,18 +8,15 @@ from database import engine, init_db
 
 app = FastAPI(
     title="Profile Service API",
-    description="""
-    ## Profile Service API
+    description=textwrap.dedent("""
+    Service quản lý hồ sơ cá nhân và tùy chọn người dùng.
     
-    Quản lý thông tin hồ sơ cá nhân và tùy chọn của người dùng.
-    
-    ### Authentication
-    Tất cả endpoints yêu cầu header `X-User-Id` để xác thực người dùng.
-    
-    ### Endpoints
-    - **Profile**: Quản lý thông tin cá nhân
-    - **Preferences**: Quản lý theme và language
-    """,
+    - GET  /profile/me: lấy hồ sơ cá nhân
+    - PUT  /profile/me: cập nhật hồ sơ cá nhân
+    - POST /profile/me: tạo hồ sơ cá nhân
+    - GET  /preferences/me: lấy tùy chọn (theme, language)
+    - PUT  /preferences/me: cập nhật tùy chọn
+    """),
     version="1.0.0",
     contact={
         "name": "Credit Score Backend Team",

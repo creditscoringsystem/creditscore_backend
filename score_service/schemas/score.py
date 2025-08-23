@@ -40,6 +40,14 @@ class ScoreOut(BaseModel):
     confidence: Optional[float] = None
     model_version: Optional[str] = None
     last_calculated: datetime
+    # UI helpers (optional)
+    category_display: Optional[str] = None
+    percentile: Optional[int] = None
+    band_color: Optional[str] = None
+    band_min: Optional[int] = None
+    band_max: Optional[int] = None
+    previous_score: Optional[int] = None
+    delta: Optional[int] = None
 
 
 class HistoryItem(BaseModel):
@@ -60,5 +68,55 @@ class SimulationOut(BaseModel):
     category: str
     confidence: Optional[float] = None
     model_version: Optional[str] = None
+    # UI helpers (optional)
+    category_display: Optional[str] = None
+    percentile: Optional[int] = None
+    band_color: Optional[str] = None
+    band_min: Optional[int] = None
+    band_max: Optional[int] = None
 
+
+
+class ProjectionItem(BaseModel):
+    month: int
+    current: int
+    simulated: int
+    confHi: int
+    confLo: int
+
+
+class ProjectionSummary(BaseModel):
+    projected: int
+    delta: int
+    confidence: int  # percentage 0..100
+
+
+class ProjectionOut(BaseModel):
+    # snapshot
+    score: int
+    category: str
+    confidence: Optional[float] = None  # 0..1
+    # projection series
+    projection: List[ProjectionItem]
+    summary: ProjectionSummary
+
+
+# -------- Factors & Recommendations --------
+class FactorItem(BaseModel):
+    name: str
+    weight: float
+    score: float
+    impact: str  # "Positive" | "Negative" | "Neutral"
+    description: Optional[str] = None
+
+
+class RecommendationItem(BaseModel):
+    title: str
+    detail: Optional[str] = None
+
+
+class FactorsOut(BaseModel):
+    user_id: str
+    factors: List[FactorItem]
+    recommendations: List[RecommendationItem]
 

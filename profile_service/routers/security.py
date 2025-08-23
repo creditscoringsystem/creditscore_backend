@@ -7,13 +7,16 @@ router = APIRouter(prefix="/security", tags=["security"])
     "/2fa/enable",
     summary="Bật xác thực 2 yếu tố",
     description="""
-    Bật tính năng xác thực 2 yếu tố (2FA) cho tài khoản.
+    Mục đích: Bật tính năng xác thực 2 yếu tố (2FA) cho tài khoản.
     
     **Yêu cầu:**
     - Header `X-User-Id` phải được cung cấp
     
     **Lưu ý:**
     - Đây là endpoint demo, chưa implement thực tế
+    
+    **Phản hồi:**
+    - 200: 2FA đã được bật (dummy)
     """,
     responses={
         200: {
@@ -36,13 +39,16 @@ def enable_2fa(user=Depends(get_current_user)):
     "/2fa/disable",
     summary="Tắt xác thực 2 yếu tố",
     description="""
-    Tắt tính năng xác thực 2 yếu tố (2FA) cho tài khoản.
+    Mục đích: Tắt tính năng xác thực 2 yếu tố (2FA) cho tài khoản.
     
     **Yêu cầu:**
     - Header `X-User-Id` phải được cung cấp
     
     **Lưu ý:**
     - Đây là endpoint demo, chưa implement thực tế
+    
+    **Phản hồi:**
+    - 200: 2FA đã được tắt (dummy)
     """,
     responses={
         200: {

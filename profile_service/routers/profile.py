@@ -21,14 +21,14 @@ def get_db():
     response_model=ProfileOut,
     summary="Lấy thông tin hồ sơ cá nhân",
     description="""
-    Lấy thông tin hồ sơ cá nhân của user hiện tại dựa trên user_id từ header.
+    Mục đích: Lấy thông tin hồ sơ cá nhân của user hiện tại (theo user_id trong JWT/header).
     
     **Yêu cầu:**
     - Header `X-User-Id` phải được cung cấp
     
-    **Trả về:**
-    - Thông tin profile nếu tồn tại
-    - 404 nếu chưa có profile
+    **Phản hồi:**
+    - 200: Trả về thông tin profile nếu tồn tại
+    - 404: Không tìm thấy profile
     """,
     responses={
         200: {
@@ -59,7 +59,7 @@ def get_my_profile(db: Session = Depends(get_db), user=Depends(get_current_user)
     response_model=ProfileOut,
     summary="Cập nhật hồ sơ cá nhân",
     description="""
-    Cập nhật thông tin hồ sơ cá nhân cho user hiện tại.
+    Mục đích: Cập nhật thông tin hồ sơ cá nhân cho user hiện tại.
     
     **Yêu cầu:**
     - Header `X-User-Id` phải được cung cấp
@@ -68,6 +68,11 @@ def get_my_profile(db: Session = Depends(get_db), user=Depends(get_current_user)
     **Lưu ý:**
     - Chỉ cập nhật các trường được cung cấp
     - Các trường không cung cấp sẽ giữ nguyên giá trị cũ
+    
+    **Phản hồi:**
+    - 200: Cập nhật thành công
+    - 404: Không tìm thấy profile để cập nhật
+    - 422: Dữ liệu không hợp lệ
     """,
     responses={
         200: {
@@ -101,7 +106,7 @@ def update_my_profile(payload: ProfileUpdate, db: Session = Depends(get_db), use
     response_model=ProfileOut,
     summary="Tạo mới hồ sơ cá nhân",
     description="""
-    Tạo mới hồ sơ cá nhân cho user hiện tại.
+    Mục đích: Tạo mới hồ sơ cá nhân cho user hiện tại.
     
     **Yêu cầu:**
     - Header `X-User-Id` phải được cung cấp
@@ -109,7 +114,12 @@ def update_my_profile(payload: ProfileUpdate, db: Session = Depends(get_db), use
     
     **Lưu ý:**
     - Chỉ tạo được 1 profile cho mỗi user
-    - Nếu đã có profile sẽ trả về lỗi 400
+    - Nếu đã có profile sẽ trả về lỗi
+    
+    **Phản hồi:**
+    - 201: Tạo hồ sơ thành công
+    - 400: Profile đã tồn tại
+    - 422: Dữ liệu không hợp lệ
     """,
     status_code=status.HTTP_201_CREATED,
     responses={

@@ -1,28 +1,25 @@
 from fastapi import FastAPI
+import textwrap
 from routers import users, admin, auth
 from fastapi.openapi.utils import get_openapi
 from database import init_db
 
 app = FastAPI(
     title="User Service API",
-    description="""
-    ## User Service API
+    description=textwrap.dedent("""
+    Service quản lý xác thực và dữ liệu người dùng cốt lõi.
     
-    Quản lý authentication và core user data.
-    
-    ### Authentication
-    Sử dụng Bearer token cho các protected endpoints.
-    
-    ### Endpoints
-    - **Auth**: Đăng ký, đăng nhập, quản lý password
-    - **Users**: Quản lý thông tin user hiện tại
-    - **Admin**: Quản lý tất cả users (admin only)
-    
-    ### Workflow
-    1. **Signup** → Tạo tài khoản mới
-    2. **Login** → Lấy access token
-    3. **Use token** → Truy cập protected endpoints
-    """,
+    - POST /auth/signup: đăng ký tài khoản
+    - POST /auth/login: đăng nhập, lấy JWT
+    - GET  /users/me: thông tin user hiện tại
+    - PUT  /users/me: cập nhật user hiện tại
+    - DELETE /users/me: xóa user hiện tại
+    - GET  /admin/users: danh sách users (admin)
+    - POST /admin/users: tạo user (admin)
+    - GET  /admin/users/{user_id}: chi tiết user (admin)
+    - PUT  /admin/users/{user_id}: cập nhật user (admin)
+    - DELETE /admin/users/{user_id}: xóa user (admin)
+    """),
     version="1.0.0",
     contact={
         "name": "Credit Score Backend Team",

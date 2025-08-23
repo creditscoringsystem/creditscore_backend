@@ -21,15 +21,18 @@ def get_db():
     response_model=ConsentOut,
     summary="Cấp quyền đồng ý",
     description="""
-    Cấp quyền đồng ý cho một dịch vụ.
+    Mục đích: Cấp quyền đồng ý (consent) cho một dịch vụ và phạm vi (scope) cụ thể.
     
     **Yêu cầu:**
-    - Header `X-User-Id` phải được cung cấp
-    - Consent data phải hợp lệ
+    - Xác thực user (JWT) hợp lệ
+    - Dữ liệu consent hợp lệ (service, scope)
     
     **Lưu ý:**
-    - Tạo consent mới hoặc cập nhật consent đã tồn tại
-    - Nếu consent đã bị thu hồi, sẽ được kích hoạt lại
+    - Nếu consent đã tồn tại, sẽ được bật lại (granted=True) và clear revoked_at
+    - Nếu chưa tồn tại, sẽ tạo consent mới
+    
+    **Phản hồi:**
+    - 200: Trả về consent sau khi cấp
     """,
     responses={
         200: {
@@ -83,13 +86,13 @@ def grant_consent(
     response_model=list[ConsentOut],
     summary="Lấy danh sách đồng ý",
     description="""
-    Lấy danh sách tất cả consent (đồng ý) của user hiện tại.
+    Mục đích: Lấy danh sách tất cả consent (đồng ý) của user hiện tại.
     
     **Yêu cầu:**
-    - Header `X-User-Id` phải được cung cấp
+    - Xác thực user (JWT) hợp lệ
     
-    **Trả về:**
-    - Danh sách các consent với thông tin chi tiết
+    **Phản hồi:**
+    - 200: Trả về danh sách các consent với thông tin chi tiết
     """,
     responses={
         200: {
@@ -122,18 +125,19 @@ def get_my_consents(db: Session = Depends(get_db), user=Depends(get_current_user
     response_model=ConsentOut,
     summary="Thu hồi đồng ý",
     description="""
-    Thu hồi một consent (đồng ý) của user.
+    Mục đích: Thu hồi một consent (đồng ý) của user theo `consent_id`.
     
     **Yêu cầu:**
-    - Header `X-User-Id` phải được cung cấp
+    - Xác thực user (JWT) hợp lệ
     - `consent_id` phải tồn tại và thuộc về user
     
-    **Tham số:**
-    - `consent_id`: ID của consent cần thu hồi
-    
     **Lưu ý:**
-    - Consent sẽ được đánh dấu là đã thu hồi
+    - Consent sẽ được đánh dấu đã thu hồi (granted=False, set revoked_at)
     - Không thể thu hồi consent đã bị thu hồi trước đó
+    
+    **Phản hồi:**
+    - 200: Trả về consent sau khi thu hồi
+    - 404: Không tìm thấy consent
     """,
     responses={
         200: {

@@ -72,7 +72,18 @@ def _make_rules(payload: ScoreUpdatedIn) -> list[Alert]:
     return alerts
 
 
-@router.get("/{user_id}", response_model=List[AlertOut], summary="List alerts for user")
+@router.get(
+    "/{user_id}",
+    response_model=List[AlertOut],
+    summary="Lấy danh sách cảnh báo của user",
+    description=(
+        "Mục đích: Trả về các cảnh báo liên quan đến điểm tín dụng của user, sắp theo thời gian giảm dần.\n\n"
+        "Phản hồi: 200 trả về danh sách (có thể rỗng)."
+    ),
+    responses={
+        200: {"description": "Danh sách cảnh báo"}
+    },
+)
 def list_alerts(user_id: str, db: Session = Depends(get_db)):
     rows = (
         db.query(Alert)
@@ -83,7 +94,19 @@ def list_alerts(user_id: str, db: Session = Depends(get_db)):
     return rows
 
 
-@router.post("/on-score-updated", response_model=List[AlertOut], summary="Create alerts when score updated")
+@router.post(
+    "/on-score-updated",
+    response_model=List[AlertOut],
+    summary="Tạo cảnh báo khi điểm được cập nhật",
+    description=(
+        "Mục đích: Sinh cảnh báo dựa trên thay đổi điểm (tăng/giảm) và ngưỡng điểm mới.\n\n"
+        "Yêu cầu: Body theo `ScoreUpdatedIn`.\n\n"
+        "Phản hồi: 200 trả về danh sách cảnh báo đã tạo."
+    ),
+    responses={
+        200: {"description": "Tạo cảnh báo thành công"}
+    },
+)
 def on_score_updated(payload: ScoreUpdatedIn, db: Session = Depends(get_db)):
     alerts = _make_rules(payload)
     for a in alerts:
@@ -95,7 +118,19 @@ def on_score_updated(payload: ScoreUpdatedIn, db: Session = Depends(get_db)):
     return alerts
 
 
-@router.post("/{alert_id}/read", response_model=MarkReadOut, summary="Mark alert as read")
+@router.post(
+    "/{alert_id}/read",
+    response_model=MarkReadOut,
+    summary="Đánh dấu đã đọc một cảnh báo",
+    description=(
+        "Mục đích: Đánh dấu trạng thái đã đọc cho alert theo `alert_id`.\n\n"
+        "Phản hồi: 200 nếu thành công; 404 nếu không tìm thấy alert."
+    ),
+    responses={
+        200: {"description": "Đã đánh dấu đã đọc"},
+        404: {"description": "Không tìm thấy alert"},
+    },
+)
 def mark_read(alert_id: int, db: Session = Depends(get_db)):
     row = db.query(Alert).filter(Alert.id == alert_id).first()
     if not row:

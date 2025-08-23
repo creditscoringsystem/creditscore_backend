@@ -23,11 +23,16 @@ def get_db():
 
 # Lấy danh sách câu hỏi cho user
 @router.get(
-    
     "/questions",
     response_model=List[schemas.SurveyQuestionOut],
-    summary="List all survey questions",
-    description="Trả về toàn bộ câu hỏi theo thứ tự `order`. Dùng để render form khảo sát ở client.",
+    summary="Lấy danh sách câu hỏi khảo sát",
+    description=(
+        "Mục đích: Trả về toàn bộ câu hỏi theo thứ tự `order` để client render form.\n\n"
+        "Phản hồi: 200 trả về danh sách câu hỏi."
+    ),
+    responses={
+        200: {"description": "Danh sách câu hỏi"}
+    },
 )
 def get_questions(db: Session = Depends(get_db)):
     """Lấy danh sách câu hỏi khảo sát (đủ trường và metadata)."""
@@ -37,14 +42,15 @@ def get_questions(db: Session = Depends(get_db)):
 @router.post(
     "/submit",
     status_code=status.HTTP_200_OK,
-    summary="Submit all answers at once",
+    summary="Gửi toàn bộ câu trả lời",
     description=(
-        "User gửi toàn bộ câu trả lời. Hệ thống sẽ validate theo loại câu hỏi.\n"
-        "Cơ chế chống spam: nếu đã trả lời đủ số câu hỏi, lần gửi sau sẽ bị từ chối (409)."
+        "Mục đích: User gửi toàn bộ câu trả lời cho survey. Hệ thống validate theo loại câu hỏi.\n\n"
+        "Yêu cầu: Đã đăng nhập.\n\n"
+        "Phản hồi: 200 nếu thành công; 400 nếu dữ liệu không hợp lệ; 409 nếu user đã hoàn thành trước đó."
     ),
     responses={
-        200: {"description": "Answers submitted successfully"},
-        400: {"description": "Validation failed"},
+        200: {"description": "Gửi câu trả lời thành công"},
+        400: {"description": "Dữ liệu không hợp lệ"},
         409: {"description": "User đã trả lời đủ, không thể gửi lại"},
     },
 )
@@ -93,8 +99,15 @@ def submit_answers(
 @router.get(
     "/answers/{user_id}",
     response_model=List[schemas.SurveyAnswerOut],
-    summary="Get user's answers",
-    description="Trả về toàn bộ câu trả lời của một user (phục vụ resume hoặc hiển thị lại).",
+    summary="Lấy toàn bộ câu trả lời của user",
+    description=(
+        "Mục đích: Trả về toàn bộ câu trả lời của một user để resume/hiển thị lại.\n\n"
+        "Yêu cầu: Đã đăng nhập.\n\n"
+        "Phản hồi: 200 trả về danh sách câu trả lời."
+    ),
+    responses={
+        200: {"description": "Danh sách câu trả lời"}
+    },
 )
 def get_answers(user_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Chỉ cho user đã đăng nhập xem câu trả lời (có thể kiểm tra user_id == user["user_id"] nếu muốn)
@@ -104,13 +117,15 @@ def get_answers(user_id: str, db: Session = Depends(get_db), user=Depends(get_cu
 @router.post(
     "/admin/import-questions",
     status_code=status.HTTP_200_OK,
-    summary="Admin import survey questions from CSV/Excel",
+    summary="(Admin) Import câu hỏi survey từ CSV/Excel",
     description=(
-        "File chấp nhận: .csv/.xlsx.\n\n"
-        "Cột bắt buộc: question_text, question_type, question_group, order.\n"
-        "Cột tuỳ chọn: options, is_required, version.\n"
-        "CSV: hệ thống tự dò delimiter và encoding."
+        "Mục đích: Admin import bộ câu hỏi từ file.\n\n"
+        "Yêu cầu: Vai trò admin. File .csv hoặc .xlsx chuẩn cột.\n\n"
+        "Phản hồi: 200 nếu import thành công."
     ),
+    responses={
+        200: {"description": "Import thành công"}
+    },
 )
 def import_questions(
     file: UploadFile = File(..., description="CSV hoặc Excel (.xlsx) chứa danh sách câu hỏi"),
@@ -129,8 +144,14 @@ def import_questions(
 
 @router.get(
     "/admin/statistics",
-    summary="Admin - overall survey statistics",
-    description="Số lượng user đã có ít nhất một câu trả lời (distinct theo user_id).",
+    summary="(Admin) Thống kê tổng quan survey",
+    description=(
+        "Mục đích: Số lượng user đã có ít nhất một câu trả lời (distinct theo user_id).\n\n"
+        "Phản hồi: 200 trả về thống kê."
+    ),
+    responses={
+        200: {"description": "Thống kê survey"}
+    },
 )
 def survey_statistics(db: Session = Depends(get_db), admin=Depends(require_admin)):
     # Tổng số user đã trả lời survey (dựa vào user_id duy nhất trong survey_answers)
@@ -139,13 +160,18 @@ def survey_statistics(db: Session = Depends(get_db), admin=Depends(require_admin
 
 @router.get(
     "/admin/question-stats/{question_id}",
-    summary="Admin - statistics for a specific question",
+    summary="(Admin) Thống kê cho một câu hỏi",
     description=(
-        "Thống kê tuỳ theo loại câu hỏi: \n"
+        "Mục đích: Trả về thống kê theo loại câu hỏi.\n\n"
         "- single_choice/multiple_choice: tần suất các đáp án\n"
         "- number: trung bình và số lượng\n"
-        "- text: tổng số câu trả lời"
+        "- text: tổng số câu trả lời\n\n"
+        "Phản hồi: 200 nếu có dữ liệu; 404 nếu không tìm thấy câu hỏi."
     ),
+    responses={
+        200: {"description": "Thống kê câu hỏi"},
+        404: {"description": "Không tìm thấy câu hỏi"},
+    },
 )
 def question_statistics(question_id: int, db: Session = Depends(get_db), admin=Depends(require_admin)):
     # Thống kê đáp án cho 1 câu hỏi
@@ -182,10 +208,18 @@ def question_statistics(question_id: int, db: Session = Depends(get_db), admin=D
 
 @router.patch(
     "/answer",
-    summary="Save or update a single answer (resume)",
+    summary="Lưu/cập nhật một câu trả lời (resume)",
     description=(
-        "Lưu một câu trả lời đơn lẻ, phục vụ resume. Nếu đã tồn tại sẽ cập nhật, không áp dụng chặn spam theo tổng số."
+        "Mục đích: Lưu 1 câu trả lời đơn lẻ; nếu đã có thì cập nhật. Không áp dụng cơ chế chặn spam theo tổng số.\n\n"
+        "Yêu cầu: Đã đăng nhập.\n\n"
+        "Phản hồi: 200 nếu thành công; 400 nếu dữ liệu không hợp lệ; 404 nếu không tìm thấy câu hỏi; 409 nếu không thể lưu."
     ),
+    responses={
+        200: {"description": "Lưu câu trả lời thành công"},
+        400: {"description": "Dữ liệu không hợp lệ"},
+        404: {"description": "Không tìm thấy câu hỏi"},
+        409: {"description": "Không thể lưu câu trả lời"},
+    },
 )
 def save_single_answer(
     payload: schemas.SurveyAnswerBase = Body(
@@ -215,8 +249,15 @@ def save_single_answer(
 
 @router.get(
     "/progress/{user_id}",
-    summary="Get survey progress for a user",
-    description="Trả về danh sách câu đã trả lời, còn thiếu và tổng số câu hỏi để client hiển thị tiến độ.",
+    summary="Lấy tiến độ trả lời survey của user",
+    description=(
+        "Mục đích: Trả về danh sách câu đã trả lời, còn thiếu và tổng số câu hỏi để hiển thị tiến độ.\n\n"
+        "Yêu cầu: Đã đăng nhập.\n\n"
+        "Phản hồi: 200 trả về thông tin tiến độ."
+    ),
+    responses={
+        200: {"description": "Tiến độ survey của user"}
+    },
 )
 def get_survey_progress(user_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Lấy tất cả câu hỏi

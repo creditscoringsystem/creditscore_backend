@@ -1,15 +1,23 @@
 from fastapi import FastAPI
+import textwrap
 from routers import survey
 from database import init_db
 
 app = FastAPI(
     title="Survey Service API",
-    description="API for managing survey questions and answers",
+    description=textwrap.dedent("""
+    Service quản lý khảo sát: câu hỏi và câu trả lời phục vụ tính điểm tín dụng.
+    
+    - GET  /survey/questions: danh sách câu hỏi
+    - POST /survey/submit: nộp câu trả lời
+    - GET  /survey/answers/{user_id}: câu trả lời theo user
+    - POST /survey/admin/import-questions: import bộ câu hỏi (admin)
+    """),
     version="1.0.0",
     openapi_tags=[
         {
             "name": "survey",
-            "description": "Survey operations"
+            "description": "Các thao tác với khảo sát"
         }
     ]
 )

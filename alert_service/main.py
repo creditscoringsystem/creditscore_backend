@@ -1,16 +1,18 @@
 from fastapi import FastAPI
+import textwrap
 from routers.alerts import router as alerts_router
 from database import init_db
 
 
 app = FastAPI(
     title="Alert Service API",
-    description=(
-        "Alerts & Tips cho Dashboard theo điểm tín dụng.\n"
-        "- GET  /alerts/{user_id}: danh sách alerts/tips\n"
-        "- POST /alerts/on-score-updated: tạo alerts khi điểm thay đổi\n"
-        "- POST /alerts/{alert_id}/read: đánh dấu đã đọc"
-    ),
+    description=textwrap.dedent("""
+    Service quản lý alerts & tips theo điểm tín dụng.
+    
+    - GET  /alerts/{user_id}: danh sách alerts/tips
+    - POST /alerts/on-score-updated: tạo alerts khi điểm thay đổi
+    - POST /alerts/{alert_id}/read: đánh dấu đã đọc
+    """),
     version="1.0.0",
 )
 

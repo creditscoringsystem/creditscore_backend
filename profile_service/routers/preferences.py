@@ -9,13 +9,13 @@ router = APIRouter(prefix="/preferences", tags=["preferences"])
     response_model=Preferences,
     summary="Lấy tùy chọn người dùng",
     description="""
-    Lấy tùy chọn cá nhân của user hiện tại.
+    Mục đích: Lấy tùy chọn cá nhân của user hiện tại.
     
     **Yêu cầu:**
     - Header `X-User-Id` phải được cung cấp
     
-    **Trả về:**
-    - Thông tin tùy chọn hiện tại (theme, language)
+    **Phản hồi:**
+    - 200: Trả về thông tin tùy chọn (theme, language)
     """,
     responses={
         200: {
@@ -43,7 +43,7 @@ def get_preferences(user=Depends(get_current_user)):
     response_model=Preferences,
     summary="Cập nhật tùy chọn người dùng",
     description="""
-    Cập nhật tùy chọn cá nhân của user hiện tại.
+    Mục đích: Cập nhật tùy chọn cá nhân của user hiện tại.
     
     **Yêu cầu:**
     - Header `X-User-Id` phải được cung cấp
@@ -55,6 +55,9 @@ def get_preferences(user=Depends(get_current_user)):
     **Lưu ý:**
     - Chỉ cập nhật các trường được cung cấp
     - Các trường không cung cấp sẽ giữ nguyên giá trị cũ
+    
+    **Phản hồi:**
+    - 200: Trả về tùy chọn sau khi cập nhật
     """,
     responses={
         200: {

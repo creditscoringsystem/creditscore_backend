@@ -9,7 +9,21 @@ from typing import List, Optional
 
 router = APIRouter()
 
-@router.get("/users/me", response_model=UserOut)
+@router.get(
+    "/users/me",
+    response_model=UserOut,
+    summary="Lấy thông tin user hiện tại",
+    description=(
+        "Mục đích: Trả về thông tin tài khoản đang đăng nhập.\n\n"
+        "Yêu cầu: Bearer token hợp lệ trong Authorization header.\n\n"
+        "Phản hồi: 200 trả về thông tin user; 401 nếu không xác thực; 404 nếu không tìm thấy user."
+    ),
+    responses={
+        200: {"description": "Thông tin user hiện tại"},
+        401: {"description": "Không xác thực hoặc token không hợp lệ"},
+        404: {"description": "Không tìm thấy user"},
+    },
+)
 def get_me(request: Request, db: Session = Depends(get_db)):
     """
     Lấy thông tin user hiện tại.
@@ -41,7 +55,22 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         )
     return user
 
-@router.put("/users/me", response_model=UserOut)
+@router.put(
+    "/users/me",
+    response_model=UserOut,
+    summary="Cập nhật thông tin user hiện tại",
+    description=(
+        "Mục đích: Cập nhật một số thông tin cơ bản của tài khoản hiện tại.\n\n"
+        "Yêu cầu: Bearer token hợp lệ.\n\n"
+        "Lưu ý: Không cập nhật mật khẩu qua endpoint này.\n\n"
+        "Phản hồi: 200 nếu thành công; 401 nếu không xác thực; 404 nếu không tìm thấy user."
+    ),
+    responses={
+        200: {"description": "Cập nhật thành công"},
+        401: {"description": "Không xác thực hoặc token không hợp lệ"},
+        404: {"description": "Không tìm thấy user"},
+    },
+)
 def update_me(
     request: Request, 
     user_update: UserCreate, 
@@ -84,7 +113,21 @@ def update_me(
     db.refresh(current_user)
     return current_user
 
-@router.delete("/users/me")
+@router.delete(
+    "/users/me",
+    summary="Xóa tài khoản user hiện tại",
+    description=(
+        "Mục đích: Xóa vĩnh viễn tài khoản đang đăng nhập.\n\n"
+        "Yêu cầu: Bearer token hợp lệ.\n\n"
+        "Lưu ý: Hành động không thể hoàn tác.\n\n"
+        "Phản hồi: 200 nếu xóa thành công; 401 nếu không xác thực; 404 nếu không tìm thấy user."
+    ),
+    responses={
+        200: {"description": "Xóa tài khoản thành công"},
+        401: {"description": "Không xác thực hoặc token không hợp lệ"},
+        404: {"description": "Không tìm thấy user"},
+    },
+)
 def delete_me(request: Request, db: Session = Depends(get_db)):
     """
     Xóa tài khoản user hiện tại.
